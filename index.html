@@ -1,0 +1,2060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#9f1239" />
+  <title>MIV Mortality — Farm Operations &amp; Automated Reports</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #fff1f2;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex justify-center bg-rose-100/60 text-slate-900">
+
+  <!-- Android Mobile App Viewport Container -->
+  <div id="app" class="w-full max-w-[440px] min-h-screen bg-[#fff8f8] shadow-2xl flex flex-col relative overflow-x-hidden border-x border-rose-200/70">
+
+    <!-- Top Android Header (Light Red / Crimson Theme) -->
+    <header class="bg-gradient-to-br from-[#881337] via-[#9f1239] to-[#b91c1c] text-white pt-4 pb-5 px-4 rounded-b-[26px] shadow-lg sticky top-0 z-30">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-11 h-11 rounded-2xl bg-amber-400 text-[#881337] font-black text-base flex items-center justify-center shadow-md shrink-0 tracking-tight">
+            MIV
+          </div>
+          <div class="min-w-0">
+            <h1 class="font-extrabold text-[17px] leading-tight tracking-tight truncate">MIV Mortality</h1>
+            <p id="header-subtitle" class="text-[11.5px] text-rose-100/90 font-medium truncate">
+              4 Groups • FARM A Cycle 76 (60-Day Batch)
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+          <!-- Dropbox Content API v2 Sync Pill -->
+          <button type="button" onclick="openDropboxModal()" id="dropbox-pill" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/25 hover:bg-black/35 border border-white/15 text-[11.5px] font-semibold transition active:scale-95">
+            <span id="dropbox-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="dropbox-status-text">Dropbox Ready</span>
+          </button>
+
+          <!-- Notification Bell with Total Logs Badge -->
+          <button type="button" onclick="switchTab('logs')" class="relative w-9 h-9 rounded-full bg-black/20 hover:bg-black/30 border border-white/15 flex items-center justify-center transition active:scale-95" title="View Logs">
+            <i data-lucide="bell" class="w-4 h-4 text-white"></i>
+            <span id="log-count-badge" class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-400 text-[#881337] text-[10px] font-extrabold flex items-center justify-center shadow">
+              6
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Role Switcher Pill Bar -->
+      <div class="mt-4 bg-black/25 p-1 rounded-full grid grid-cols-2 gap-1 border border-white/10">
+        <button type="button" id="role-user-btn" onclick="selectRole('user')" class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-full text-[12.5px] font-bold transition-all bg-white text-[#881337] shadow">
+          <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
+          <span>Farm Worker (User)</span>
+        </button>
+        <button type="button" id="role-admin-btn" onclick="selectRole('admin')" class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-full text-[12.5px] font-bold transition-all text-rose-100 hover:text-white">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+          <span>Farm Manager (Admin)</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Non-Blocking Toast Notification Banner -->
+    <div id="toast-banner" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-[400px] px-4 py-3 rounded-2xl shadow-xl text-white text-xs font-bold flex items-center justify-between gap-2 transition-all">
+      <div class="flex items-center gap-2">
+        <i data-lucide="check-circle-2" class="w-4 h-4 shrink-0"></i>
+        <span id="toast-message">Saved!</span>
+      </div>
+      <button type="button" onclick="hideToast()" class="opacity-80 hover:opacity-100"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+
+    <!-- Main Scrollable Content Area -->
+    <main id="main-content" class="flex-1 px-4 pt-4 pb-28 space-y-4">
+      <!-- Dynamic views rendered here -->
+    </main>
+
+    <!-- Bottom Android Navigation Bar -->
+    <nav id="bottom-nav" class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[440px] bg-white/95 backdrop-blur-md border-t border-rose-100 px-3 py-2 flex items-center justify-around z-30 shadow-[0_-4px_20px_rgba(136,19,55,0.06)]">
+      <button type="button" onclick="switchTab('input')" id="nav-input" class="flex flex-col items-center gap-1 py-1 px-4 rounded-2xl transition">
+        <div id="nav-input-icon-wrap" class="px-4 py-1 rounded-full bg-rose-100 text-[#9f1239]">
+          <i data-lucide="clipboard-edit" class="w-5 h-5"></i>
+        </div>
+        <span id="nav-input-label" class="text-[11px] font-extrabold text-[#9f1239]">Daily Input</span>
+      </button>
+
+      <button type="button" onclick="switchTab('logs')" id="nav-logs" class="flex flex-col items-center gap-1 py-1 px-4 rounded-2xl transition">
+        <div id="nav-logs-icon-wrap" class="px-4 py-1 rounded-full text-slate-500">
+          <i data-lucide="history" class="w-5 h-5"></i>
+        </div>
+        <span id="nav-logs-label" class="text-[11px] font-semibold text-slate-500">My Logs</span>
+      </button>
+
+      <button type="button" onclick="switchTab('summary')" id="nav-summary" class="flex flex-col items-center gap-1 py-1 px-4 rounded-2xl transition">
+        <div id="nav-summary-icon-wrap" class="px-4 py-1 rounded-full text-slate-500">
+          <i data-lucide="pie-chart" class="w-5 h-5"></i>
+        </div>
+        <span id="nav-summary-label" class="text-[11px] font-semibold text-slate-500">Cycle Summary</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Security PIN Verification Modal -->
+  <div id="pin-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-[360px] rounded-3xl p-6 shadow-2xl border border-rose-100 space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-rose-100 text-[#9f1239] flex items-center justify-center">
+            <i data-lucide="lock" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 id="pin-modal-title" class="font-extrabold text-slate-900 text-base">Security PIN Required</h3>
+            <p id="pin-modal-subtitle" class="text-xs text-slate-500">Enter PIN to continue</p>
+          </div>
+        </div>
+        <button type="button" onclick="closePinModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div>
+        <input id="pin-input" type="password" inputmode="numeric" maxlength="8" placeholder="••••"
+          onkeydown="if(event.key==='Enter') submitPinModal()"
+          class="w-full text-center text-2xl tracking-[0.5em] font-black py-3.5 px-4 rounded-2xl border-2 border-rose-200 focus:border-[#9f1239] focus:outline-none bg-rose-50/40 text-slate-900" />
+        <p id="pin-error" class="hidden text-xs font-bold text-red-600 mt-2 text-center">Incorrect PIN. Please try again.</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5 pt-1">
+        <button type="button" onclick="closePinModal()" class="py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50">
+          Cancel
+        </button>
+        <button type="button" onclick="submitPinModal()" class="py-3 rounded-2xl bg-[#9f1239] hover:bg-[#881337] text-white font-bold text-sm shadow-md shadow-rose-900/20">
+          Verify PIN
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Amend Log Modal -->
+  <div id="amend-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-[380px] rounded-3xl p-5 shadow-2xl border border-rose-100 space-y-4">
+      <div class="flex items-center justify-between border-b border-rose-100 pb-3">
+        <div>
+          <h3 class="font-extrabold text-slate-900 text-base">Amend Mortality Record</h3>
+          <p id="amend-meta" class="text-xs font-semibold text-[#9f1239]"></p>
+        </div>
+        <button type="button" onclick="closeAmendModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Date &amp; Time</label>
+          <input id="amend-datetime" type="datetime-local" class="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-sm font-semibold focus:outline-none focus:border-[#9f1239]" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Total Dead (Birds)</label>
+            <input id="amend-dead" type="number" min="0" class="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-base font-extrabold text-slate-900 focus:outline-none focus:border-[#9f1239]" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Total Cull (Birds)</label>
+            <input id="amend-cull" type="number" min="0" class="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-base font-extrabold text-slate-900 focus:outline-none focus:border-[#9f1239]" />
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5 pt-2">
+        <button type="button" onclick="closeAmendModal()" class="py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm">Cancel</button>
+        <button type="button" onclick="saveAmendedLog()" class="py-3 rounded-2xl bg-[#9f1239] text-white font-bold text-sm shadow-md">Save &amp; Sync</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dropbox Content API v2 Sync Modal -->
+  <div id="dropbox-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white w-full max-w-[390px] rounded-3xl p-5 shadow-2xl border border-rose-100 space-y-4 my-auto">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-rose-100 text-[#9f1239] flex items-center justify-center">
+            <i data-lucide="cloud" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-extrabold text-slate-900 text-base">Dropbox API v2 Sync</h3>
+            <p class="text-[11px] text-slate-500 font-medium">Target: <code class="bg-rose-50 px-1.5 py-0.5 rounded text-[#9f1239] font-bold">/data/mortality.json</code></p>
+          </div>
+        </div>
+        <button type="button" onclick="closeDropboxModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <!-- Permanent Refresh Token (Multi-Device Auto-Sync) -->
+        <div class="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-extrabold text-emerald-900 uppercase">Permanent Refresh Token (Recommended)</span>
+            <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">Never Expires</span>
+          </div>
+          <input id="dropbox-refresh-input" type="password" placeholder="Refresh Token..." class="w-full px-3 py-2 rounded-xl border border-emerald-200 bg-white text-xs font-mono focus:outline-none focus:border-[#9f1239]" />
+          <div class="grid grid-cols-2 gap-2">
+            <input id="dropbox-appkey-input" type="text" placeholder="App Key" class="w-full px-3 py-2 rounded-xl border border-emerald-200 bg-white text-xs font-mono focus:outline-none focus:border-[#9f1239]" />
+            <input id="dropbox-appsecret-input" type="password" placeholder="App Secret" class="w-full px-3 py-2 rounded-xl border border-emerald-200 bg-white text-xs font-mono focus:outline-none focus:border-[#9f1239]" />
+          </div>
+        </div>
+
+        <!-- Direct Access Token Fallback -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Direct Access Token (Optional Fallback)</label>
+          <input id="dropbox-token-input" type="password" placeholder="sl.B..." class="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-xs font-mono focus:outline-none focus:border-[#9f1239]" />
+        </div>
+
+        <div id="dropbox-last-sync" class="text-[11px] bg-rose-50/70 border border-rose-100 rounded-xl p-2.5 text-slate-600 font-medium">
+          Local cache active. Enter token to enable cloud sync.
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" onclick="pullFromDropbox(true)" class="py-2.5 px-3 rounded-xl border border-rose-200 text-[#9f1239] font-bold text-xs hover:bg-rose-50 flex items-center justify-center gap-1.5">
+          <i data-lucide="download-cloud" class="w-3.5 h-3.5"></i> Pull JSON
+        </button>
+        <button type="button" onclick="saveDropboxToken()" class="py-2.5 px-3 rounded-xl bg-[#9f1239] text-white font-bold text-xs shadow-md flex items-center justify-center gap-1.5">
+          <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i> Save &amp; Sync
+        </button>
+      </div>
+
+      <button type="button" onclick="copyNewDeviceSyncLink()" class="w-full py-2.5 px-3 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-800">
+        <i data-lucide="link" class="w-3.5 h-3.5"></i> Copy 1-Tap New Device Sync Link
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 0. OPTIONAL BUILT-IN CREDENTIALS FOR GITHUB PAGES AUTO-SYNC
+    // =========================================================================
+    const DEFAULT_DBX_APP_KEY = '';
+    const DEFAULT_DBX_APP_SECRET = '';
+    const DEFAULT_DBX_REFRESH_TOKEN = '';
+    const DEFAULT_DBX_ACCESS_TOKEN = '';
+
+    // =========================================================================
+    // 1. STATE & DEFAULT FARM CONFIGURATION (MATCHES SCREENSHOT DESIGN)
+    // =========================================================================
+    const STORAGE_KEY = 'miv_mortality_state_v2';
+    const TOKEN_KEY = 'miv_dropbox_token_v2';
+    const CREDS_KEY = 'miv_dropbox_creds_v2';
+    const DROPBOX_PATH = '/data/mortality.json';
+
+    const DEFAULT_STATE = {
+      pin: '1234',
+      deletedLogIds: [],
+      updatedAt: null,
+      groups: [
+        { id: 'grp-a', name: 'FARM A', code: 'KP', cycleNumber: 76, batchDays: 60, cycleStartDate: '2026-11-05' },
+        { id: 'grp-b', name: 'FARM B', code: 'KP', cycleNumber: 75, batchDays: 60, cycleStartDate: '2026-11-06' },
+        { id: 'grp-c', name: 'FARM C', code: 'DANGI', cycleNumber: 77, batchDays: 60, cycleStartDate: '2026-11-01' },
+        { id: 'grp-d', name: 'FARM D', code: 'GADDES', cycleNumber: 74, batchDays: 60, cycleStartDate: '2026-11-10' }
+      ],
+      houses: [
+        { id: 'h-a1', groupId: 'grp-a', number: 'H1', birdsIntake: 32000, supplier: 'CP Breeder', intakeDate: '2026-11-05' },
+        { id: 'h-a2', groupId: 'grp-a', number: 'H2', birdsIntake: 32000, supplier: 'CP Breeder', intakeDate: '2026-11-05' },
+        { id: 'h-a3', groupId: 'grp-a', number: 'H3', birdsIntake: 30500, supplier: 'Leong Hup', intakeDate: '2026-11-06' },
+        { id: 'h-a4', groupId: 'grp-a', number: 'H4', birdsIntake: 30500, supplier: 'Leong Hup', intakeDate: '2026-11-06' },
+        { id: 'h-a5', groupId: 'grp-a', number: 'H5', birdsIntake: 31000, supplier: 'CP Breeder', intakeDate: '2026-11-07' },
+        { id: 'h-a6', groupId: 'grp-a', number: 'H6', birdsIntake: 31000, supplier: 'CP Breeder', intakeDate: '2026-11-07' },
+        { id: 'h-b1', groupId: 'grp-b', number: 'H1', birdsIntake: 28000, supplier: 'Cobb Asia', intakeDate: '2026-11-06' },
+        { id: 'h-b2', groupId: 'grp-b', number: 'H2', birdsIntake: 28000, supplier: 'Cobb Asia', intakeDate: '2026-11-06' },
+        { id: 'h-b3', groupId: 'grp-b', number: 'H3', birdsIntake: 29000, supplier: 'Cobb Asia', intakeDate: '2026-11-07' },
+        { id: 'h-b4', groupId: 'grp-b', number: 'H4', birdsIntake: 29000, supplier: 'Cobb Asia', intakeDate: '2026-11-07' },
+        { id: 'h-c1', groupId: 'grp-c', number: 'H1', birdsIntake: 35000, supplier: 'Aviagen', intakeDate: '2026-11-01' },
+        { id: 'h-c2', groupId: 'grp-c', number: 'H2', birdsIntake: 35000, supplier: 'Aviagen', intakeDate: '2026-11-01' },
+        { id: 'h-c3', groupId: 'grp-c', number: 'H3', birdsIntake: 34000, supplier: 'Aviagen', intakeDate: '2026-11-02' },
+        { id: 'h-c4', groupId: 'grp-c', number: 'H4', birdsIntake: 34000, supplier: 'Aviagen', intakeDate: '2026-11-02' },
+        { id: 'h-d1', groupId: 'grp-d', number: 'H1', birdsIntake: 29500, supplier: 'Ross Breeder', intakeDate: '2026-11-10' },
+        { id: 'h-d2', groupId: 'grp-d', number: 'H2', birdsIntake: 29500, supplier: 'Ross Breeder', intakeDate: '2026-11-10' }
+      ],
+      logs: [
+        { id: 'log-1', groupId: 'grp-a', houseId: 'h-a1', dateTime: '2026-11-05T07:30', dead: 14, cull: 4 },
+        { id: 'log-2', groupId: 'grp-a', houseId: 'h-a1', dateTime: '2026-11-06T07:45', dead: 18, cull: 6 },
+        { id: 'log-3', groupId: 'grp-a', houseId: 'h-a1', dateTime: '2026-11-16T08:00', dead: 22, cull: 8 },
+        { id: 'log-4', groupId: 'grp-a', houseId: 'h-a1', dateTime: '2026-11-17T08:15', dead: 19, cull: 5 },
+        { id: 'log-5', groupId: 'grp-a', houseId: 'h-a2', dateTime: '2026-11-16T08:10', dead: 15, cull: 4 },
+        { id: 'log-6', groupId: 'grp-b', houseId: 'h-b1', dateTime: '2026-11-17T08:20', dead: 24, cull: 7 }
+      ]
+    };
+
+    let hasCachedLocalState = Boolean(localStorage.getItem(STORAGE_KEY));
+    let appState = loadState();
+    let dbxCreds = loadDropboxCredentials();
+    let lastSyncTime = null;
+    let isSyncBusy = false;
+
+    // UI Navigation & Security Session State
+    let role = 'user'; // 'user' | 'admin'
+    let adminUnlocked = false; // Auto-locks whenever leaving Admin or closing/hiding page
+    let activeUserTab = 'input'; // 'input' | 'logs' | 'summary'
+    let activeAdminTab = 'reports'; // 'reports' | 'houses' | 'groups' | 'cycle'
+
+    // Form Selection State
+    let selectedGroupId = appState.groups[0]?.id || '';
+    let selectedHouseId = getHousesByGroup(selectedGroupId)[0]?.id || '';
+    let formDateTime = getLocalDateTimeNow();
+    let formDead = 0;
+    let formCull = 0;
+
+    // Logs Filter State
+    let logFilterGroupId = 'all';
+
+    // Cycle Summary Filter State
+    let summaryFilterGroupId = 'all';
+
+    // Admin Sub-view State
+    let reportGroupId = appState.groups[0]?.id || '';
+    let reportHouseId = getHousesByGroup(reportGroupId)[0]?.id || '';
+    let adminCycleGroupId = appState.groups[0]?.id || '';
+    let editingGroupId = null;
+    let editingHouseId = null;
+
+    // Modal Callback State
+    let pendingPinCallback = null;
+    let amendingLogId = null;
+
+    // =========================================================================
+    // 2. CREDENTIAL BOOTSTRAP & MULTI-DEVICE DROPBOX CONTENT API V2 ENGINE
+    // =========================================================================
+    function loadDropboxCredentials() {
+      let creds = {
+        appKey: (DEFAULT_DBX_APP_KEY || '').trim(),
+        appSecret: (DEFAULT_DBX_APP_SECRET || '').trim(),
+        refreshToken: (DEFAULT_DBX_REFRESH_TOKEN || '').trim(),
+        accessToken: (localStorage.getItem(TOKEN_KEY) || DEFAULT_DBX_ACCESS_TOKEN || '').trim(),
+        expiresAt: 0
+      };
+
+      try {
+        const saved = localStorage.getItem(CREDS_KEY);
+        if (saved) {
+          const p = JSON.parse(saved);
+          if (p.appKey) creds.appKey = p.appKey.trim();
+          if (p.appSecret) creds.appSecret = p.appSecret.trim();
+          if (p.refreshToken) creds.refreshToken = p.refreshToken.trim();
+          if (p.accessToken) creds.accessToken = p.accessToken.trim();
+          if (p.expiresAt) creds.expiresAt = p.expiresAt;
+        }
+      } catch (e) {
+        console.warn('Error loading Dropbox credentials:', e);
+      }
+
+      // Support 1-tap Team Device Auto-Connect URL (#dbx=...)
+      try {
+        const src = `${window.location.hash || ''}&${window.location.search || ''}`;
+        const m = src.match(/dbx=([A-Za-z0-9\-_]+)/);
+        if (m && m[1]) {
+          let b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+          while (b64.length % 4 !== 0) b64 += '=';
+          const linkObj = JSON.parse(decodeURIComponent(escape(atob(b64))));
+          if (linkObj.rk) creds.refreshToken = linkObj.rk.trim();
+          if (linkObj.ak) creds.appKey = linkObj.ak.trim();
+          if (linkObj.as) creds.appSecret = linkObj.as.trim();
+          if (linkObj.at) creds.accessToken = linkObj.at.trim();
+          creds.expiresAt = 0;
+          localStorage.setItem(CREDS_KEY, JSON.stringify(creds));
+          history.replaceState(null, '', window.location.pathname);
+        }
+      } catch (e) {
+        console.warn('Invalid #dbx link:', e);
+      }
+
+      return creds;
+    }
+
+    function hasDropboxAuth() {
+      return Boolean((dbxCreds.refreshToken && dbxCreds.appKey) || dbxCreds.accessToken);
+    }
+
+    function encodeDropboxArg(obj) {
+      return JSON.stringify(obj).replace(/[\u007f-\uffff]/g, (c) =>
+        '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4)
+      );
+    }
+
+    async function getActiveBearerToken(forceRefresh = false) {
+      if (dbxCreds.refreshToken && dbxCreds.appKey) {
+        if (!forceRefresh && dbxCreds.accessToken && dbxCreds.expiresAt > Date.now() + 300000) {
+          return dbxCreds.accessToken;
+        }
+        const params = new URLSearchParams();
+        params.append('grant_type', 'refresh_token');
+        params.append('refresh_token', dbxCreds.refreshToken);
+        params.append('client_id', dbxCreds.appKey);
+        if (dbxCreds.appSecret) params.append('client_secret', dbxCreds.appSecret);
+
+        const res = await fetch('https://api.dropboxapi.com/oauth2/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params.toString()
+        });
+        if (!res.ok) throw new Error('OAuth Refresh HTTP ' + res.status);
+        const data = await res.json();
+        dbxCreds.accessToken = data.access_token;
+        dbxCreds.expiresAt = Date.now() + Number(data.expires_in || 14400) * 1000;
+        localStorage.setItem(CREDS_KEY, JSON.stringify(dbxCreds));
+        return dbxCreds.accessToken;
+      }
+      if (dbxCreds.accessToken) return dbxCreds.accessToken;
+      throw new Error('No Dropbox credentials');
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.groups) && Array.isArray(parsed.houses) && Array.isArray(parsed.logs)) {
+            return { pin: '1234', deletedLogIds: [], updatedAt: null, ...parsed };
+          }
+        }
+      } catch (e) {
+        console.error('Error loading cached state:', e);
+      }
+      return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    }
+
+    // Non-destructive multi-device merge so different devices never overwrite each other's new logs
+    function mergeRemoteState(remote) {
+      if (!remote || typeof remote !== 'object') return false;
+      const remoteTime = remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
+      const localTime = appState.updatedAt ? Date.parse(appState.updatedAt) : 0;
+      const remoteNewer = !hasCachedLocalState || remoteTime >= localTime;
+
+      const deletedSet = new Set([
+        ...(Array.isArray(appState.deletedLogIds) ? appState.deletedLogIds : []),
+        ...(Array.isArray(remote.deletedLogIds) ? remote.deletedLogIds : [])
+      ]);
+      appState.deletedLogIds = Array.from(deletedSet).slice(-500);
+
+      if (remote.pin && remoteNewer) appState.pin = String(remote.pin);
+      if (Array.isArray(remote.groups) && remote.groups.length > 0 && remoteNewer) {
+        appState.groups = remote.groups;
+      }
+      if (Array.isArray(remote.houses) && remoteNewer) {
+        appState.houses = remote.houses;
+      }
+
+      const logMap = new Map();
+      (Array.isArray(remote.logs) ? remote.logs : []).forEach(l => {
+        if (l && l.id && !deletedSet.has(l.id)) logMap.set(l.id, l);
+      });
+
+      let localAddedOrAmended = false;
+      (Array.isArray(appState.logs) ? appState.logs : []).forEach(l => {
+        if (!l || !l.id || deletedSet.has(l.id)) return;
+        const existing = logMap.get(l.id);
+        if (!existing) {
+          logMap.set(l.id, l);
+          localAddedOrAmended = true;
+        } else if ((l.amendedAt || '') > (existing.amendedAt || '')) {
+          logMap.set(l.id, l);
+          localAddedOrAmended = true;
+        }
+      });
+
+      appState.logs = Array.from(logMap.values()).sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
+      if (remote.updatedAt && remoteTime > localTime) {
+        appState.updatedAt = remote.updatedAt;
+      }
+      hasCachedLocalState = true;
+      return localAddedOrAmended;
+    }
+
+    async function saveAndSync(showNotification = false, customMsg = 'Synced to Dropbox (/data/mortality.json)') {
+      appState.updatedAt = new Date().toISOString();
+      hasCachedLocalState = true;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      updateHeaderBadges();
+
+      if (!hasDropboxAuth()) {
+        if (showNotification) {
+          showToast(customMsg.replace('Dropbox (/data/mortality.json)', 'Local Storage'));
+        }
+        return;
+      }
+
+      if (isSyncBusy) return;
+      isSyncBusy = true;
+      setDropboxIndicator('syncing', 'Syncing...');
+
+      try {
+        let token = await getActiveBearerToken(false);
+        const bodyStr = JSON.stringify(appState, null, 2);
+
+        let response = await fetch('https://content.dropboxapi.com/2/files/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Dropbox-API-Arg': encodeDropboxArg({
+              path: DROPBOX_PATH,
+              mode: 'overwrite',
+              autorename: false,
+              mute: true
+            }),
+            'Content-Type': 'application/octet-stream'
+          },
+          body: bodyStr
+        });
+
+        if (response.status === 401 && dbxCreds.refreshToken) {
+          token = await getActiveBearerToken(true);
+          response = await fetch('https://content.dropboxapi.com/2/files/upload', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + token,
+              'Dropbox-API-Arg': encodeDropboxArg({
+                path: DROPBOX_PATH,
+                mode: 'overwrite',
+                autorename: false,
+                mute: true
+              }),
+              'Content-Type': 'application/octet-stream'
+            },
+            body: bodyStr
+          });
+        }
+
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        lastSyncTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setDropboxIndicator('live', 'Dropbox Live');
+        if (showNotification) showToast(customMsg);
+      } catch (err) {
+        console.error('Dropbox upload failed:', err);
+        setDropboxIndicator('error', 'Sync Offline');
+        if (showNotification) showToast('Saved locally (Dropbox offline)', true);
+      } finally {
+        isSyncBusy = false;
+      }
+    }
+
+    async function pullFromDropbox(notify = false) {
+      if (!hasDropboxAuth()) {
+        if (notify) showToast('Enter Dropbox credentials first', true);
+        return;
+      }
+      if (isSyncBusy) return;
+      isSyncBusy = true;
+      setDropboxIndicator('syncing', 'Pulling...');
+
+      try {
+        let token = await getActiveBearerToken(false);
+        let res = await fetch('https://content.dropboxapi.com/2/files/download', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Dropbox-API-Arg': encodeDropboxArg({ path: DROPBOX_PATH })
+          }
+        });
+
+        if (res.status === 401 && dbxCreds.refreshToken) {
+          token = await getActiveBearerToken(true);
+          res = await fetch('https://content.dropboxapi.com/2/files/download', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + token,
+              'Dropbox-API-Arg': encodeDropboxArg({ path: DROPBOX_PATH })
+            }
+          });
+        }
+
+        if (res.status === 409) {
+          // Initialize /data/mortality.json on Dropbox if not created yet
+          isSyncBusy = false;
+          await saveAndSync(notify, 'Created /data/mortality.json on Dropbox');
+          return;
+        }
+
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const remoteData = await res.json();
+        if (remoteData && Array.isArray(remoteData.groups)) {
+          const needsPushBack = mergeRemoteState(remoteData);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+          lastSyncTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          setDropboxIndicator('live', 'Dropbox Live');
+          ensureValidSelections();
+          renderApp();
+          isSyncBusy = false;
+          if (needsPushBack) {
+            await saveAndSync(false);
+          }
+          if (notify) showToast('Loaded latest /data/mortality.json');
+        }
+      } catch (err) {
+        console.warn('Dropbox pull skipped/failed:', err);
+        setDropboxIndicator(hasDropboxAuth() ? 'live' : 'ready', hasDropboxAuth() ? 'Dropbox Live' : 'Dropbox Ready');
+        if (notify) showToast('Could not pull /data/mortality.json (will create on save)', true);
+      } finally {
+        isSyncBusy = false;
+      }
+    }
+
+    function setDropboxIndicator(status, text) {
+      const dot = document.getElementById('dropbox-dot');
+      const label = document.getElementById('dropbox-status-text');
+      if (!dot || !label) return;
+      label.textContent = text;
+      dot.className = 'w-2 h-2 rounded-full ' + (
+        status === 'live' ? 'bg-emerald-400 animate-pulse' :
+        status === 'syncing' ? 'bg-amber-300 animate-ping' :
+        status === 'error' ? 'bg-red-400' : 'bg-emerald-400'
+      );
+    }
+
+    // =========================================================================
+    // 3. AUTO-LOCK CONDITION FOR FARM MANAGER (ADMIN)
+    // =========================================================================
+    function lockAdminSession() {
+      if (adminUnlocked || role === 'admin') {
+        adminUnlocked = false;
+        role = 'user';
+        renderApp();
+      }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (role === 'admin' || adminUnlocked) {
+          adminUnlocked = false;
+          role = 'user';
+          renderApp();
+        }
+      } else if (hasDropboxAuth()) {
+        pullFromDropbox(false);
+      }
+    });
+
+    window.addEventListener('pagehide', () => {
+      adminUnlocked = false;
+      role = 'user';
+    });
+
+    // =========================================================================
+    // 4. HELPERS & CALCULATIONS
+    // =========================================================================
+    function getLocalDateTimeNow() {
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      return now.toISOString().slice(0, 16);
+    }
+
+    function getTodayDateStr() {
+      return getLocalDateTimeNow().slice(0, 10);
+    }
+
+    function getHousesByGroup(groupId) {
+      return appState.houses.filter(h => h.groupId === groupId);
+    }
+
+    function getGroupById(groupId) {
+      return appState.groups.find(g => g.id === groupId);
+    }
+
+    function getHouseById(houseId) {
+      return appState.houses.find(h => h.id === houseId);
+    }
+
+    // Day 0 on Intake Date, next day is Day 1
+    function calculateBirdAge(intakeDateStr, targetDateStr) {
+      if (!intakeDateStr || !targetDateStr) return 0;
+      const start = new Date(intakeDateStr.slice(0, 10) + 'T00:00:00');
+      const end = new Date(targetDateStr.slice(0, 10) + 'T00:00:00');
+      const diffDays = Math.floor((end - start) / (1000 * 60 * 60 * 24));
+      return Math.max(0, diffDays);
+    }
+
+    function ensureValidSelections() {
+      if (!getGroupById(selectedGroupId)) {
+        selectedGroupId = appState.groups[0]?.id || '';
+      }
+      const groupHouses = getHousesByGroup(selectedGroupId);
+      if (!groupHouses.some(h => h.id === selectedHouseId)) {
+        selectedHouseId = groupHouses[0]?.id || '';
+      }
+      if (!getGroupById(reportGroupId)) {
+        reportGroupId = appState.groups[0]?.id || '';
+      }
+      const repHouses = getHousesByGroup(reportGroupId);
+      if (!repHouses.some(h => h.id === reportHouseId)) {
+        reportHouseId = repHouses[0]?.id || '';
+      }
+      if (!getGroupById(adminCycleGroupId)) {
+        adminCycleGroupId = appState.groups[0]?.id || '';
+      }
+    }
+
+    function showToast(msg, isWarning = false) {
+      const banner = document.getElementById('toast-banner');
+      const text = document.getElementById('toast-message');
+      text.textContent = msg;
+      banner.className = `fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-[400px] px-4 py-3 rounded-2xl shadow-xl text-white text-xs font-bold flex items-center justify-between gap-2 transition-all ${isWarning ? 'bg-amber-600' : 'bg-[#881337]'}`;
+      banner.classList.remove('hidden');
+      lucide.createIcons();
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(hideToast, 3200);
+    }
+
+    function hideToast() {
+      document.getElementById('toast-banner').classList.add('hidden');
+    }
+
+    // =========================================================================
+    // 5. PIN MODAL CONTROLLER (ALWAYS REQUIRED FOR ADMIN & LOG AMEND/DELETE)
+    // =========================================================================
+    function requestPinVerification(title, subtitle, onSuccess) {
+      pendingPinCallback = onSuccess;
+      document.getElementById('pin-modal-title').textContent = title;
+      document.getElementById('pin-modal-subtitle').textContent = subtitle;
+      const input = document.getElementById('pin-input');
+      input.value = '';
+      document.getElementById('pin-error').classList.add('hidden');
+      document.getElementById('pin-modal').classList.remove('hidden');
+      setTimeout(() => input.focus(), 60);
+    }
+
+    function closePinModal() {
+      pendingPinCallback = null;
+      document.getElementById('pin-modal').classList.add('hidden');
+    }
+
+    function submitPinModal() {
+      const entered = document.getElementById('pin-input').value.trim();
+      if (entered === appState.pin) {
+        const cb = pendingPinCallback;
+        closePinModal();
+        if (typeof cb === 'function') cb();
+      } else {
+        document.getElementById('pin-error').classList.remove('hidden');
+        document.getElementById('pin-input').value = '';
+        document.getElementById('pin-input').focus();
+      }
+    }
+
+    // =========================================================================
+    // 6. NAVIGATION & ROLE SWITCHING
+    // =========================================================================
+    function selectRole(targetRole) {
+      if (targetRole === 'user') {
+        adminUnlocked = false;
+        role = 'user';
+        renderApp();
+        return;
+      }
+
+      if (targetRole === 'admin') {
+        if (role === 'admin' && adminUnlocked) return;
+        requestPinVerification(
+          'Farm Manager Access',
+          'Enter Admin PIN (default: 1234) to unlock',
+          () => {
+            adminUnlocked = true;
+            role = 'admin';
+            renderApp();
+          }
+        );
+      }
+    }
+
+    function switchTab(tab) {
+      if (role === 'admin' || adminUnlocked) {
+        adminUnlocked = false;
+        role = 'user';
+      }
+      activeUserTab = tab;
+      renderApp();
+    }
+
+    function switchAdminTab(tab) {
+      if (!adminUnlocked) {
+        selectRole('admin');
+        return;
+      }
+      activeAdminTab = tab;
+      renderApp();
+    }
+
+    function updateHeaderBadges() {
+      const currentGroup = getGroupById(selectedGroupId) || appState.groups[0];
+      const subtitle = document.getElementById('header-subtitle');
+      if (subtitle && currentGroup) {
+        subtitle.textContent = `${appState.groups.length} Groups • ${currentGroup.name} Cycle ${currentGroup.cycleNumber} (${currentGroup.batchDays}-Day Batch)`;
+      }
+      const badge = document.getElementById('log-count-badge');
+      if (badge) badge.textContent = appState.logs.length;
+    }
+
+    // =========================================================================
+    // 7. MAIN RENDER ROUTER
+    // =========================================================================
+    function renderApp() {
+      ensureValidSelections();
+      updateHeaderBadges();
+
+      const userBtn = document.getElementById('role-user-btn');
+      const adminBtn = document.getElementById('role-admin-btn');
+      if (role === 'user') {
+        userBtn.className = 'flex items-center justify-center gap-1.5 py-2 px-3 rounded-full text-[12.5px] font-bold transition-all bg-white text-[#881337] shadow';
+        adminBtn.className = 'flex items-center justify-center gap-1.5 py-2 px-3 rounded-full text-[12.5px] font-bold transition-all text-rose-100 hover:text-white';
+      } else {
+        adminBtn.className = 'flex items-center justify-center gap-1.5 py-2 px-3 rounded-full text-[12.5px] font-bold transition-all bg-white text-[#881337] shadow';
+        userBtn.className = 'flex items-center justify-center gap-1.5 py-2 px-3 rounded-full text-[12.5px] font-bold transition-all text-rose-100 hover:text-white';
+      }
+
+      ['input', 'logs', 'summary'].forEach(t => {
+        const isActive = role === 'user' && activeUserTab === t;
+        const wrap = document.getElementById(`nav-${t}-icon-wrap`);
+        const lbl = document.getElementById(`nav-${t}-label`);
+        wrap.className = isActive ? 'px-4 py-1 rounded-full bg-rose-100 text-[#9f1239]' : 'px-4 py-1 rounded-full text-slate-500';
+        lbl.className = isActive ? 'text-[11px] font-extrabold text-[#9f1239]' : 'text-[11px] font-semibold text-slate-500';
+      });
+
+      const main = document.getElementById('main-content');
+      if (role === 'admin' && adminUnlocked) {
+        main.innerHTML = renderAdminView();
+      } else {
+        if (activeUserTab === 'input') main.innerHTML = renderDailyInputView();
+        else if (activeUserTab === 'logs') main.innerHTML = renderMyLogsView();
+        else main.innerHTML = renderCycleSummaryView();
+      }
+
+      lucide.createIcons();
+    }
+
+    // =========================================================================
+    // 8. VIEW 1: JOTFORM-STYLE DAILY INPUT CARD (MATCHING SCREENSHOT)
+    // =========================================================================
+    function renderDailyInputView() {
+      const group = getGroupById(selectedGroupId) || appState.groups[0];
+      const houses = getHousesByGroup(group?.id);
+      const house = getHouseById(selectedHouseId) || houses[0];
+      const age = house ? calculateBirdAge(house.intakeDate, formDateTime) : 0;
+      const batchDays = group ? group.batchDays : 60;
+      const totalToday = Number(formDead || 0) + Number(formCull || 0);
+
+      return `
+        <!-- Top Jotform Crimson Hero Banner -->
+        <div class="bg-gradient-to-br from-[#9f1239] to-[#be123c] rounded-3xl p-5 text-white shadow-lg shadow-rose-950/15 relative overflow-hidden">
+          <div class="flex items-center justify-between gap-2 mb-2.5">
+            <span class="px-3 py-1 rounded-full bg-black/25 border border-white/15 text-[11px] font-extrabold tracking-wide uppercase">
+              ${group ? group.name : 'NO GROUP'} • DAY ${age}/${batchDays}
+            </span>
+            <span class="text-xs font-bold text-rose-100">${formDateTime.slice(0, 10)}</span>
+          </div>
+          <h2 class="text-xl font-extrabold tracking-tight leading-snug">MIV Daily Mortality Entry Form</h2>
+          <p class="text-xs text-rose-100/90 mt-1">Select your group &amp; house below to record daily dead &amp; cull birds</p>
+        </div>
+
+        <!-- Form Card Container -->
+        <div class="bg-white rounded-3xl p-4 shadow-sm border border-rose-100 space-y-5">
+
+          <!-- 1. Select Farm Group -->
+          <div>
+            <div class="flex items-center justify-between mb-2.5">
+              <label class="text-[13px] font-extrabold text-slate-800">1. Select Farm Group <span class="text-rose-600">*</span></label>
+              <span class="text-xs font-extrabold text-[#9f1239]">Cycle ${group ? group.cycleNumber : '-'}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2.5">
+              ${appState.groups.map(g => {
+                const count = getHousesByGroup(g.id).length;
+                const active = g.id === selectedGroupId;
+                return `
+                  <button type="button" onclick="handleSelectFormGroup('${g.id}')"
+                    class="text-left p-3.5 rounded-2xl border-2 transition-all active:scale-[0.98] ${
+                      active
+                        ? 'bg-[#9f1239] border-[#9f1239] text-white shadow-md shadow-rose-900/20'
+                        : 'bg-white border-rose-100 hover:border-rose-300 text-slate-800'
+                    }">
+                    <div class="flex items-center justify-between gap-1">
+                      <span class="font-extrabold text-[13.5px] truncate">${g.name}</span>
+                      <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold ${
+                        active ? 'bg-white/20 text-white' : 'bg-rose-50 text-[#9f1239]'
+                      }">${g.code}</span>
+                    </div>
+                    <div class="mt-1.5 flex items-center justify-between text-[11px] font-medium ${active ? 'text-rose-100' : 'text-slate-500'}">
+                      <span>${count} ${count === 1 ? 'House' : 'Houses'}</span>
+                      <span class="font-extrabold ${active ? 'text-amber-300' : 'text-[#9f1239]'}">C${g.cycleNumber}</span>
+                    </div>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- 2. Select House No (Quick-Tap Pills) -->
+          <div>
+            <div class="flex items-center justify-between mb-2.5">
+              <label class="text-[13px] font-extrabold text-slate-800">2. Select House No (${group ? group.name : ''}) <span class="text-rose-600">*</span></label>
+              <span class="text-[11px] font-bold text-[#9f1239]">Tap pill</span>
+            </div>
+            ${houses.length === 0 ? `
+              <p class="text-xs text-slate-500 bg-rose-50 p-3 rounded-xl">No houses configured in this group yet.</p>
+            ` : `
+              <div class="flex flex-wrap gap-2">
+                ${houses.map(h => {
+                  const active = h.id === selectedHouseId;
+                  const hAge = calculateBirdAge(h.intakeDate, formDateTime);
+                  return `
+                    <button type="button" onclick="handleSelectFormHouse('${h.id}')"
+                      class="flex items-center gap-2 px-4 py-2.5 rounded-full border-2 text-xs font-extrabold transition-all active:scale-95 ${
+                        active
+                          ? 'bg-[#9f1239] border-[#9f1239] text-white shadow-sm'
+                          : 'bg-rose-50/50 border-rose-100 text-slate-700 hover:border-rose-300'
+                      }">
+                      <i data-lucide="home" class="w-3.5 h-3.5 ${active ? 'text-amber-300' : 'text-[#9f1239]'}"></i>
+                      <span>${h.number}</span>
+                      <span class="text-[10px] opacity-80">D${hAge}</span>
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            `}
+            ${house ? `
+              <div class="mt-2.5 px-3 py-2 rounded-xl bg-rose-50/70 border border-rose-100 flex items-center justify-between text-[11px] text-slate-600">
+                <span>Intake: <strong class="text-slate-800">${house.birdsIntake.toLocaleString()} birds</strong> (${house.supplier})</span>
+                <span class="font-bold text-[#9f1239]">Age: Day ${age}</span>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- 3. Date & Time -->
+          <div>
+            <label class="block text-[13px] font-extrabold text-slate-800 mb-2">3. Date &amp; Time <span class="text-rose-600">*</span></label>
+            <input type="datetime-local" value="${formDateTime}" onchange="handleDateTimeChange(this.value)"
+              class="w-full px-4 py-3 rounded-2xl border-2 border-rose-100 bg-rose-50/30 text-sm font-bold text-slate-800 focus:outline-none focus:border-[#9f1239]" />
+          </div>
+
+          <!-- 4. Total Dead & Total Cull -->
+          <div>
+            <label class="block text-[13px] font-extrabold text-slate-800 mb-2">4. Daily Mortality Count <span class="text-rose-600">*</span></label>
+            <div class="grid grid-cols-2 gap-3">
+              <!-- Total Dead -->
+              <div class="p-3.5 rounded-2xl border-2 border-rose-100 bg-rose-50/30">
+                <span class="block text-[11px] font-extrabold uppercase tracking-wider text-[#9f1239] mb-2">Total Dead</span>
+                <div class="flex items-center justify-between gap-1">
+                  <button type="button" onclick="adjustCounter('dead', -1)" class="w-9 h-9 rounded-xl bg-white border border-rose-200 text-[#9f1239] font-black text-lg flex items-center justify-center active:scale-90 shadow-2xs">-</button>
+                  <input type="number" min="0" value="${formDead}" oninput="setCounter('dead', this.value)"
+                    class="w-14 text-center text-xl font-black text-slate-900 bg-transparent focus:outline-none" />
+                  <button type="button" onclick="adjustCounter('dead', 1)" class="w-9 h-9 rounded-xl bg-[#9f1239] text-white font-black text-lg flex items-center justify-center active:scale-90 shadow-2xs">+</button>
+                </div>
+              </div>
+
+              <!-- Total Cull -->
+              <div class="p-3.5 rounded-2xl border-2 border-rose-100 bg-rose-50/30">
+                <span class="block text-[11px] font-extrabold uppercase tracking-wider text-amber-700 mb-2">Total Cull</span>
+                <div class="flex items-center justify-between gap-1">
+                  <button type="button" onclick="adjustCounter('cull', -1)" class="w-9 h-9 rounded-xl bg-white border border-rose-200 text-[#9f1239] font-black text-lg flex items-center justify-center active:scale-90 shadow-2xs">-</button>
+                  <input type="number" min="0" value="${formCull}" oninput="setCounter('cull', this.value)"
+                    class="w-14 text-center text-xl font-black text-slate-900 bg-transparent focus:outline-none" />
+                  <button type="button" onclick="adjustCounter('cull', 1)" class="w-9 h-9 rounded-xl bg-[#9f1239] text-white font-black text-lg flex items-center justify-center active:scale-90 shadow-2xs">+</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Daily Sum Strip -->
+            <div class="mt-3 px-4 py-2.5 rounded-2xl bg-rose-100/70 flex items-center justify-between">
+              <span class="text-xs font-bold text-[#881337]">Combined Mortality (Dead + Cull)</span>
+              <span class="text-base font-black text-[#881337]">${totalToday} Birds</span>
+            </div>
+          </div>
+
+          <!-- Submit Mortality Button -->
+          <button type="button" onclick="submitMortalityEntry()"
+            class="w-full py-4 rounded-2xl bg-gradient-to-r from-[#9f1239] to-[#be123c] hover:from-[#881337] hover:to-[#9f1239] text-white font-extrabold text-[15px] shadow-lg shadow-rose-900/25 flex items-center justify-center gap-2 transition active:scale-[0.98]">
+            <i data-lucide="send" class="w-4 h-4"></i>
+            <span>Submit Mortality</span>
+          </button>
+        </div>
+      `;
+    }
+
+    function handleSelectFormGroup(groupId) {
+      selectedGroupId = groupId;
+      const houses = getHousesByGroup(groupId);
+      selectedHouseId = houses[0]?.id || '';
+      renderApp();
+    }
+
+    function handleSelectFormHouse(houseId) {
+      selectedHouseId = houseId;
+      renderApp();
+    }
+
+    function handleDateTimeChange(val) {
+      if (val) {
+        formDateTime = val;
+        renderApp();
+      }
+    }
+
+    function adjustCounter(field, delta) {
+      if (field === 'dead') formDead = Math.max(0, Number(formDead || 0) + delta);
+      if (field === 'cull') formCull = Math.max(0, Number(formCull || 0) + delta);
+      renderApp();
+    }
+
+    function setCounter(field, val) {
+      const num = Math.max(0, parseInt(val || '0', 10) || 0);
+      if (field === 'dead') formDead = num;
+      if (field === 'cull') formCull = num;
+      renderApp();
+    }
+
+    async function submitMortalityEntry() {
+      if (!selectedGroupId || !selectedHouseId) {
+        showToast('Please select a valid Farm Group and House', true);
+        return;
+      }
+      const dead = Math.max(0, parseInt(formDead || '0', 10));
+      const cull = Math.max(0, parseInt(formCull || '0', 10));
+
+      const newLog = {
+        id: 'log-' + Date.now(),
+        groupId: selectedGroupId,
+        houseId: selectedHouseId,
+        dateTime: formDateTime,
+        dead,
+        cull
+      };
+
+      appState.logs.unshift(newLog);
+      formDead = 0;
+      formCull = 0;
+      formDateTime = getLocalDateTimeNow();
+      renderApp();
+      await saveAndSync(true, 'Mortality logged & synced to /data/mortality.json');
+    }
+
+    // =========================================================================
+    // 9. VIEW 2: MY LOGS (AMEND & DELETE ALWAYS REQUIRE PIN)
+    // =========================================================================
+    function renderMyLogsView() {
+      const filteredLogs = appState.logs
+        .filter(l => logFilterGroupId === 'all' || l.groupId === logFilterGroupId)
+        .sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
+
+      return `
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-extrabold text-slate-900">Mortality Activity Logs</h2>
+            <p class="text-xs text-slate-500">Amend &amp; Delete always require Security PIN</p>
+          </div>
+          <span class="px-3 py-1 rounded-full bg-rose-100 text-[#9f1239] text-xs font-extrabold">
+            ${filteredLogs.length} Records
+          </span>
+        </div>
+
+        <!-- Group Filter Pills -->
+        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          <button type="button" onclick="setLogFilter('all')" class="px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition ${
+            logFilterGroupId === 'all' ? 'bg-[#9f1239] text-white' : 'bg-white text-slate-600 border border-rose-100'
+          }">All Groups</button>
+          ${appState.groups.map(g => `
+            <button type="button" onclick="setLogFilter('${g.id}')" class="px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition ${
+              logFilterGroupId === g.id ? 'bg-[#9f1239] text-white' : 'bg-white text-slate-600 border border-rose-100'
+            }">${g.name}</button>
+          `).join('')}
+        </div>
+
+        <!-- Logs List -->
+        <div class="space-y-3">
+          ${filteredLogs.length === 0 ? `
+            <div class="bg-white rounded-3xl p-8 text-center border border-rose-100">
+              <p class="text-sm font-bold text-slate-600">No mortality records found</p>
+              <p class="text-xs text-slate-400 mt-1">Switch to Daily Input to submit a record.</p>
+            </div>
+          ` : filteredLogs.map(log => {
+            const grp = getGroupById(log.groupId);
+            const hse = getHouseById(log.houseId);
+            const age = hse ? calculateBirdAge(hse.intakeDate, log.dateTime) : 0;
+            const total = Number(log.dead) + Number(log.cull);
+
+            return `
+              <div class="bg-white rounded-2xl p-4 border border-rose-100 shadow-2xs space-y-3">
+                <div class="flex items-start justify-between gap-2">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="px-2.5 py-0.5 rounded-lg bg-rose-100 text-[#9f1239] text-[11px] font-extrabold">
+                        ${grp ? grp.name : 'Unknown'} • ${hse ? hse.number : '?'}
+                      </span>
+                      <span class="text-[11px] font-bold text-slate-500">Day ${age}</span>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-500 mt-1.5 flex items-center gap-1">
+                      <i data-lucide="clock" class="w-3.5 h-3.5 text-rose-400"></i>
+                      ${log.dateTime.replace('T', ' ')}
+                    </p>
+                  </div>
+
+                  <div class="text-right">
+                    <span class="text-lg font-black text-[#881337]">${total}</span>
+                    <span class="block text-[10px] font-bold uppercase text-slate-400">Total Birds</span>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-rose-50 text-xs">
+                  <div class="bg-rose-50/60 px-3 py-1.5 rounded-xl flex justify-between">
+                    <span class="text-slate-600 font-medium">Dead:</span>
+                    <span class="font-extrabold text-[#9f1239]">${log.dead}</span>
+                  </div>
+                  <div class="bg-amber-50/70 px-3 py-1.5 rounded-xl flex justify-between">
+                    <span class="text-slate-600 font-medium">Cull:</span>
+                    <span class="font-extrabold text-amber-800">${log.cull}</span>
+                  </div>
+                </div>
+
+                <!-- Always PIN-Protected Amend & Delete Buttons -->
+                <div class="flex items-center justify-end gap-2 pt-1">
+                  <button type="button" onclick="promptAmendLog('${log.id}')" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-[#9f1239] font-bold text-xs flex items-center gap-1 transition">
+                    <i data-lucide="lock" class="w-3 h-3"></i> Amend
+                  </button>
+                  <button type="button" onclick="promptDeleteLog('${log.id}')" class="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center gap-1 transition">
+                    <i data-lucide="trash-2" class="w-3 h-3"></i> Delete
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function setLogFilter(groupId) {
+      logFilterGroupId = groupId;
+      renderApp();
+    }
+
+    function promptAmendLog(logId) {
+      requestPinVerification(
+        'PIN Required to Amend',
+        'Enter security PIN to edit this mortality record',
+        () => {
+          const log = appState.logs.find(l => l.id === logId);
+          if (!log) return;
+          amendingLogId = logId;
+          const grp = getGroupById(log.groupId);
+          const hse = getHouseById(log.houseId);
+          document.getElementById('amend-meta').textContent = `${grp ? grp.name : ''} • ${hse ? hse.number : ''}`;
+          document.getElementById('amend-datetime').value = log.dateTime;
+          document.getElementById('amend-dead').value = log.dead;
+          document.getElementById('amend-cull').value = log.cull;
+          document.getElementById('amend-modal').classList.remove('hidden');
+        }
+      );
+    }
+
+    function closeAmendModal() {
+      amendingLogId = null;
+      document.getElementById('amend-modal').classList.add('hidden');
+    }
+
+    async function saveAmendedLog() {
+      const log = appState.logs.find(l => l.id === amendingLogId);
+      if (!log) return;
+      log.dateTime = document.getElementById('amend-datetime').value || log.dateTime;
+      log.dead = Math.max(0, parseInt(document.getElementById('amend-dead').value || '0', 10));
+      log.cull = Math.max(0, parseInt(document.getElementById('amend-cull').value || '0', 10));
+      log.amendedAt = new Date().toISOString();
+      closeAmendModal();
+      renderApp();
+      await saveAndSync(true, 'Record amended & synced to Dropbox');
+    }
+
+    function promptDeleteLog(logId) {
+      requestPinVerification(
+        'PIN Required to Delete',
+        'Enter security PIN to permanently remove this record',
+        async () => {
+          if (!Array.isArray(appState.deletedLogIds)) appState.deletedLogIds = [];
+          if (!appState.deletedLogIds.includes(logId)) appState.deletedLogIds.push(logId);
+          appState.logs = appState.logs.filter(l => l.id !== logId);
+          renderApp();
+          await saveAndSync(true, 'Record deleted & synced to Dropbox');
+        }
+      );
+    }
+
+    // =========================================================================
+    // 10. VIEW 3: EXECUTIVE CYCLE SUMMARY (USER)
+    // =========================================================================
+    function setSummaryGroupFilter(groupId) {
+      summaryFilterGroupId = groupId;
+      renderApp();
+    }
+
+    function renderCycleSummaryView() {
+      const totalIntakeAll = appState.houses.reduce((sum, h) => sum + Number(h.birdsIntake || 0), 0);
+      const totalDeadAll = appState.logs.reduce((sum, l) => sum + Number(l.dead || 0), 0);
+      const totalCullAll = appState.logs.reduce((sum, l) => sum + Number(l.cull || 0), 0);
+      const totalMortAll = totalDeadAll + totalCullAll;
+      const overallPct = totalIntakeAll > 0 ? ((totalMortAll / totalIntakeAll) * 100).toFixed(2) : '0.00';
+
+      const groupSummaries = appState.groups.map(group => {
+        const houses = getHousesByGroup(group.id);
+        const houseIds = new Set(houses.map(h => h.id));
+        const gLogs = appState.logs.filter(l => l.groupId === group.id || houseIds.has(l.houseId));
+        const gIntake = houses.reduce((s, h) => s + Number(h.birdsIntake || 0), 0);
+        const gDead = gLogs.reduce((s, l) => s + Number(l.dead || 0), 0);
+        const gCull = gLogs.reduce((s, l) => s + Number(l.cull || 0), 0);
+        const gMort = gDead + gCull;
+        const gPct = gIntake > 0 ? ((gMort / gIntake) * 100).toFixed(2) : '0.00';
+        const gAge = calculateBirdAge(group.cycleStartDate, getTodayDateStr());
+        const gProgress = Math.min(100, Math.round((gAge / (group.batchDays || 60)) * 100));
+        return { group, houses, gIntake, gDead, gCull, gMort, gPct, gAge, gProgress };
+      });
+
+      const visibleGroupSummaries = summaryFilterGroupId === 'all'
+        ? groupSummaries
+        : groupSummaries.filter(gs => gs.group.id === summaryFilterGroupId);
+
+      return `
+        <!-- Executive Overview Banner -->
+        <div class="bg-gradient-to-br from-[#881337] to-[#be123c] rounded-3xl p-5 text-white shadow-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-rose-200">Executive Cycle Summary</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-white/15 text-[10.5px] font-bold text-rose-100">${appState.groups.length} Groups • ${appState.houses.length} Houses</span>
+          </div>
+          <div class="mt-2 flex items-end justify-between">
+            <div>
+              <div class="text-3xl font-black">${totalMortAll.toLocaleString()}</div>
+              <div class="text-xs text-rose-100 mt-0.5">Total Cumulative Mortality (Dead: ${totalDeadAll.toLocaleString()} • Cull: ${totalCullAll.toLocaleString()})</div>
+            </div>
+            <div class="text-right">
+              <div class="text-2xl font-black text-amber-300">${overallPct}%</div>
+              <div class="text-[11px] text-rose-100">vs ${totalIntakeAll.toLocaleString()} Intake</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dedicated Summary by Group Section -->
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between px-1">
+            <div>
+              <h3 class="font-extrabold text-sm text-slate-900">Summary by Group</h3>
+              <p class="text-[11px] text-slate-500">Tap any group card or pill to filter house breakdown</p>
+            </div>
+            <span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-[#9f1239] text-[11px] font-extrabold">${appState.groups.length} Groups</span>
+          </div>
+
+          <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            <button type="button" onclick="setSummaryGroupFilter('all')" class="px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition ${
+              summaryFilterGroupId === 'all' ? 'bg-[#9f1239] text-white shadow-xs' : 'bg-white text-slate-600 border border-rose-100 hover:border-rose-300'
+            }">All Groups (${appState.groups.length})</button>
+            ${appState.groups.map(g => `
+              <button type="button" onclick="setSummaryGroupFilter('${g.id}')" class="px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition ${
+                summaryFilterGroupId === g.id ? 'bg-[#9f1239] text-white shadow-xs' : 'bg-white text-slate-600 border border-rose-100 hover:border-rose-300'
+              }">${g.name} • C${g.cycleNumber}</button>
+            `).join('')}
+          </div>
+
+          <div class="space-y-2.5">
+            ${groupSummaries.map(({ group, houses, gIntake, gDead, gCull, gMort, gPct, gAge, gProgress }) => {
+              const isSelected = summaryFilterGroupId === group.id;
+              return `
+                <div onclick="setSummaryGroupFilter('${isSelected ? 'all' : group.id}')"
+                  class="bg-white rounded-2xl p-4 border-2 transition cursor-pointer shadow-2xs space-y-3 ${
+                    isSelected ? 'border-[#9f1239] ring-2 ring-rose-200/70' : 'border-rose-100 hover:border-rose-300'
+                  }">
+                  <div class="flex items-start justify-between gap-2">
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <span class="font-black text-sm text-slate-900">${group.name}</span>
+                        <span class="px-2 py-0.5 rounded-md bg-rose-100 text-[#9f1239] text-[10px] font-extrabold">${group.code}</span>
+                        <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-extrabold">Cycle ${group.cycleNumber}</span>
+                      </div>
+                      <p class="text-[11px] text-slate-500 font-medium mt-1">
+                        ${houses.length} ${houses.length === 1 ? 'House' : 'Houses'} • Day ${gAge}/${group.batchDays} • Intake: <strong class="text-slate-700">${gIntake.toLocaleString()}</strong>
+                      </p>
+                    </div>
+
+                    <div class="text-right">
+                      <div class="text-lg font-black text-[#881337] leading-none">${gMort.toLocaleString()}</div>
+                      <span class="inline-block mt-1 px-2 py-0.5 rounded-full bg-rose-50 text-[#9f1239] text-[11px] font-extrabold">${gPct}%</span>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-3 gap-2 text-[11px]">
+                    <div class="bg-rose-50/70 px-2.5 py-1.5 rounded-xl flex items-center justify-between">
+                      <span class="text-slate-500 font-medium">Dead:</span>
+                      <span class="font-extrabold text-[#9f1239]">${gDead.toLocaleString()}</span>
+                    </div>
+                    <div class="bg-amber-50/80 px-2.5 py-1.5 rounded-xl flex items-center justify-between">
+                      <span class="text-slate-500 font-medium">Cull:</span>
+                      <span class="font-extrabold text-amber-800">${gCull.toLocaleString()}</span>
+                    </div>
+                    <div class="bg-slate-50 px-2.5 py-1.5 rounded-xl flex items-center justify-between">
+                      <span class="text-slate-500 font-medium">Batch:</span>
+                      <span class="font-extrabold text-slate-800">${gProgress}%</span>
+                    </div>
+                  </div>
+
+                  <div class="space-y-1">
+                    <div class="w-full h-2 bg-rose-100 rounded-full overflow-hidden">
+                      <div class="h-full bg-gradient-to-r from-[#9f1239] to-[#e11d48] rounded-full transition-all" style="width: ${gProgress}%"></div>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- Per-Group & Per-House 60-Day Breakdown Cards -->
+        <div class="pt-1 space-y-4">
+          <div class="flex items-center justify-between px-1">
+            <h3 class="font-extrabold text-sm text-slate-900">House Breakdown (${summaryFilterGroupId === 'all' ? 'All Groups' : (getGroupById(summaryFilterGroupId)?.name || '')})</h3>
+            ${summaryFilterGroupId !== 'all' ? `
+              <button type="button" onclick="setSummaryGroupFilter('all')" class="text-xs font-extrabold text-[#9f1239] hover:underline">Show All</button>
+            ` : ''}
+          </div>
+
+          ${visibleGroupSummaries.map(({ group, houses }) => {
+            return `
+              <div class="space-y-2.5">
+                <div class="flex items-center justify-between px-1">
+                  <div class="flex items-center gap-2">
+                    <h4 class="font-extrabold text-xs uppercase tracking-wider text-slate-700">${group.name}</h4>
+                    <span class="px-2 py-0.5 rounded-md bg-rose-100 text-[#9f1239] text-[10px] font-extrabold">${group.code}</span>
+                  </div>
+                  <span class="text-xs font-bold text-[#9f1239]">Cycle ${group.cycleNumber} • ${group.batchDays}d</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                  ${houses.map(h => {
+                    const hLogs = appState.logs.filter(l => l.houseId === h.id);
+                    const deadSum = hLogs.reduce((s, l) => s + Number(l.dead || 0), 0);
+                    const cullSum = hLogs.reduce((s, l) => s + Number(l.cull || 0), 0);
+                    const tot = deadSum + cullSum;
+                    const pct = h.birdsIntake > 0 ? ((tot / h.birdsIntake) * 100).toFixed(2) : '0.00';
+                    const age = calculateBirdAge(h.intakeDate, getTodayDateStr());
+                    const progress = Math.min(100, Math.round((age / (group.batchDays || 60)) * 100));
+
+                    return `
+                      <div class="bg-white rounded-2xl p-3.5 border border-rose-100 shadow-2xs space-y-2.5">
+                        <div class="flex items-center justify-between">
+                          <span class="px-2.5 py-0.5 rounded-lg bg-[#9f1239] text-white text-xs font-extrabold">${h.number}</span>
+                          <span class="text-[11px] font-bold text-slate-500">Day ${age}/${group.batchDays}</span>
+                        </div>
+
+                        <div>
+                          <div class="flex items-baseline justify-between">
+                            <span class="text-xl font-black text-slate-900">${tot.toLocaleString()}</span>
+                            <span class="text-xs font-extrabold text-[#9f1239]">${pct}%</span>
+                          </div>
+                          <p class="text-[10.5px] text-slate-500 mt-0.5">Dead: ${deadSum} • Cull: ${cullSum}</p>
+                        </div>
+
+                        <div class="w-full h-1.5 bg-rose-100 rounded-full overflow-hidden">
+                          <div class="h-full bg-[#9f1239] rounded-full" style="width: ${progress}%"></div>
+                        </div>
+
+                        <div class="text-[10px] text-slate-400 font-medium truncate">
+                          Intake: ${h.birdsIntake.toLocaleString()} (${h.supplier})
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // 11. VIEW 4: FARM MANAGER (ADMIN) — AUTO-LOCKS ON PAGE EXIT
+    // =========================================================================
+    function renderAdminView() {
+      return `
+        <div class="bg-rose-950 text-white px-4 py-2.5 rounded-2xl flex items-center justify-between text-xs shadow-sm">
+          <div class="flex items-center gap-2">
+            <i data-lucide="shield-alert" class="w-4 h-4 text-amber-400"></i>
+            <span class="font-bold">Admin Unlocked (Auto-locks on close)</span>
+          </div>
+          <button type="button" onclick="lockAdminSession()" class="px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 font-extrabold text-[11px] flex items-center gap-1">
+            <i data-lucide="lock" class="w-3 h-3"></i> Lock Now
+          </button>
+        </div>
+
+        <div class="bg-white p-1.5 rounded-full border border-rose-100 shadow-2xs grid grid-cols-4 gap-1">
+          ${[
+            { id: 'reports', label: 'Reports' },
+            { id: 'houses', label: 'Houses' },
+            { id: 'groups', label: 'Groups' },
+            { id: 'cycle', label: 'Cycle' }
+          ].map(tab => `
+            <button type="button" onclick="switchAdminTab('${tab.id}')" class="py-2 px-2 rounded-full text-xs font-extrabold transition ${
+              activeAdminTab === tab.id
+                ? 'bg-[#9f1239] text-white shadow-xs'
+                : 'text-slate-600 hover:bg-rose-50'
+            }">${tab.label}</button>
+          `).join('')}
+        </div>
+
+        ${activeAdminTab === 'reports' ? renderAdminReportsTab() : ''}
+        ${activeAdminTab === 'houses' ? renderAdminHousesTab() : ''}
+        ${activeAdminTab === 'groups' ? renderAdminGroupsTab() : ''}
+        ${activeAdminTab === 'cycle' ? renderAdminCycleAndPinTab() : ''}
+      `;
+    }
+
+    function renderAdminReportsTab() {
+      const grp = getGroupById(reportGroupId) || appState.groups[0];
+      const houses = getHousesByGroup(grp?.id);
+      const hse = getHouseById(reportHouseId) || houses[0];
+
+      const houseLogs = hse ? appState.logs.filter(l => l.houseId === hse.id) : [];
+      const dailyMap = {};
+      houseLogs.forEach(l => {
+        const dateKey = l.dateTime.slice(0, 10);
+        if (!dailyMap[dateKey]) dailyMap[dateKey] = { date: dateKey, dead: 0, cull: 0 };
+        dailyMap[dateKey].dead += Number(l.dead || 0);
+        dailyMap[dateKey].cull += Number(l.cull || 0);
+      });
+
+      const sortedDays = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
+      let runningTotal = 0;
+      const rows = sortedDays.map(d => {
+        const total = d.dead + d.cull;
+        runningTotal += total;
+        const age = hse ? calculateBirdAge(hse.intakeDate, d.date) : 0;
+        return { ...d, age, total, runningTotal };
+      });
+
+      const intake = hse ? Number(hse.birdsIntake || 0) : 0;
+      const finalPct = intake > 0 ? ((runningTotal / intake) * 100).toFixed(2) : '0.00';
+
+      return `
+        <div class="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-extrabold text-base text-slate-900">Automated Farm Report</h3>
+            <span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-[#9f1239] text-[11px] font-extrabold">
+              Cycle ${grp ? grp.cycleNumber : '-'}
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">Select Group</label>
+              <select onchange="handleReportGroupChange(this.value)" class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold text-slate-800 bg-rose-50/30">
+                ${appState.groups.map(g => `<option value="${g.id}" ${g.id === grp?.id ? 'selected' : ''}>${g.name} (${g.code})</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">Select House No</label>
+              <select onchange="handleReportHouseChange(this.value)" class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold text-slate-800 bg-rose-50/30">
+                ${houses.map(h => `<option value="${h.id}" ${h.id === hse?.id ? 'selected' : ''}>${h.number} (${h.supplier})</option>`).join('')}
+              </select>
+            </div>
+          </div>
+
+          ${hse ? `
+            <div class="p-3 rounded-2xl bg-rose-50/80 border border-rose-100 grid grid-cols-3 gap-2 text-center">
+              <div>
+                <span class="block text-[10px] font-bold text-slate-500">Intake Date</span>
+                <span class="text-xs font-extrabold text-slate-800">${hse.intakeDate}</span>
+              </div>
+              <div>
+                <span class="block text-[10px] font-bold text-slate-500">Birds Intake</span>
+                <span class="text-xs font-extrabold text-slate-800">${intake.toLocaleString()}</span>
+              </div>
+              <div>
+                <span class="block text-[10px] font-bold text-slate-500">Supplier</span>
+                <span class="text-xs font-extrabold text-[#9f1239] truncate block">${hse.supplier}</span>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-2xl border border-rose-100">
+              <table class="w-full text-left border-collapse text-[11.5px]">
+                <thead>
+                  <tr class="bg-[#9f1239] text-white font-extrabold">
+                    <th class="py-2.5 px-2.5">Date</th>
+                    <th class="py-2.5 px-2 text-center">Age</th>
+                    <th class="py-2.5 px-2 text-right">Dead</th>
+                    <th class="py-2.5 px-2 text-right">Cull</th>
+                    <th class="py-2.5 px-2 text-right">Total</th>
+                    <th class="py-2.5 px-2.5 text-right">Run Tot</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-rose-100">
+                  ${rows.length === 0 ? `
+                    <tr>
+                      <td colspan="6" class="py-6 text-center text-slate-400 font-medium">No mortality entries logged for ${hse.number} yet.</td>
+                    </tr>
+                  ` : rows.map(r => `
+                    <tr class="hover:bg-rose-50/50">
+                      <td class="py-2 px-2.5 font-bold text-slate-700 whitespace-nowrap">${r.date}</td>
+                      <td class="py-2 px-2 text-center font-extrabold text-[#9f1239]">D${r.age}</td>
+                      <td class="py-2 px-2 text-right font-semibold text-slate-700">${r.dead}</td>
+                      <td class="py-2 px-2 text-right font-semibold text-slate-700">${r.cull}</td>
+                      <td class="py-2 px-2 text-right font-extrabold text-slate-900">${r.total}</td>
+                      <td class="py-2 px-2.5 text-right font-black text-[#881337]">${r.runningTotal}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="bg-gradient-to-r from-[#881337] to-[#be123c] rounded-2xl p-4 text-white flex items-center justify-between">
+              <div>
+                <span class="text-[10.5px] font-bold uppercase tracking-wider text-rose-200">Running Total vs Intake</span>
+                <div class="text-sm font-extrabold mt-0.5">${runningTotal.toLocaleString()} / ${intake.toLocaleString()} Birds</div>
+              </div>
+              <div class="text-right">
+                <span class="text-[10.5px] font-bold uppercase tracking-wider text-rose-200">Mortality %</span>
+                <div class="text-2xl font-black text-amber-300">${finalPct}%</div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <button type="button" onclick="exportReportCSV()" class="py-2.5 px-3 rounded-xl border border-rose-200 text-[#9f1239] font-extrabold text-xs hover:bg-rose-50 flex items-center justify-center gap-1.5">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Download CSV
+              </button>
+              <button type="button" onclick="copyWhatsAppReport()" class="py-2.5 px-3 rounded-xl bg-[#9f1239] text-white font-extrabold text-xs shadow-sm flex items-center justify-center gap-1.5">
+                <i data-lucide="copy" class="w-4 h-4"></i> Copy Summary
+              </button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function handleReportGroupChange(gid) {
+      reportGroupId = gid;
+      reportHouseId = getHousesByGroup(gid)[0]?.id || '';
+      renderApp();
+    }
+
+    function handleReportHouseChange(hid) {
+      reportHouseId = hid;
+      renderApp();
+    }
+
+    function exportReportCSV() {
+      const grp = getGroupById(reportGroupId);
+      const hse = getHouseById(reportHouseId);
+      if (!grp || !hse) return;
+
+      const houseLogs = appState.logs.filter(l => l.houseId === hse.id);
+      const dailyMap = {};
+      houseLogs.forEach(l => {
+        const d = l.dateTime.slice(0, 10);
+        if (!dailyMap[d]) dailyMap[d] = { date: d, dead: 0, cull: 0 };
+        dailyMap[d].dead += Number(l.dead || 0);
+        dailyMap[d].cull += Number(l.cull || 0);
+      });
+
+      const sorted = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
+      let run = 0;
+      const lines = [
+        `MIV MORTALITY REPORT - ${grp.name} (${grp.code}) - HOUSE ${hse.number} - CYCLE ${grp.cycleNumber}`,
+        `Supplier,${hse.supplier},Intake Date,${hse.intakeDate},Birds Intake,${hse.birdsIntake}`,
+        '',
+        'Date,Age (Day),Dead,Cull,Daily Total,Running Total,Mortality % vs Intake'
+      ];
+
+      sorted.forEach(r => {
+        const tot = r.dead + r.cull;
+        run += tot;
+        const age = calculateBirdAge(hse.intakeDate, r.date);
+        const pct = hse.birdsIntake > 0 ? ((run / hse.birdsIntake) * 100).toFixed(2) : '0.00';
+        lines.push(`${r.date},${age},${r.dead},${r.cull},${tot},${run},${pct}%`);
+      });
+
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `MIV_Mortality_${grp.name.replace(/\s+/g, '_')}_${hse.number}_Cyc${grp.cycleNumber}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('CSV Farm Report downloaded');
+    }
+
+    function copyWhatsAppReport() {
+      const grp = getGroupById(reportGroupId);
+      const hse = getHouseById(reportHouseId);
+      if (!grp || !hse) return;
+
+      const houseLogs = appState.logs.filter(l => l.houseId === hse.id);
+      const dead = houseLogs.reduce((s, l) => s + Number(l.dead || 0), 0);
+      const cull = houseLogs.reduce((s, l) => s + Number(l.cull || 0), 0);
+      const run = dead + cull;
+      const pct = hse.birdsIntake > 0 ? ((run / hse.birdsIntake) * 100).toFixed(2) : '0.00';
+      const age = calculateBirdAge(hse.intakeDate, getTodayDateStr());
+
+      const text = `*MIV MORTALITY REPORT*\nGroup: ${grp.name} (${grp.code}) | Cycle ${grp.cycleNumber}\nHouse: ${hse.number} (Age: Day ${age})\nSupplier: ${hse.supplier}\nIntake Date: ${hse.intakeDate}\nBirds Intake: ${hse.birdsIntake.toLocaleString()}\nTotal Dead: ${dead} | Total Cull: ${cull}\nRunning Total: *${run.toLocaleString()} birds (${pct}%)*`;
+      copyToClipboardSafe(text);
+      showToast('Formatted report copied to clipboard');
+    }
+
+    function copyToClipboardSafe(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand('copy');
+      } catch (e) {}
+      document.body.removeChild(ta);
+    }
+
+    // ADMIN TAB B: HOUSES
+    function renderAdminHousesTab() {
+      const editH = editingHouseId ? getHouseById(editingHouseId) : null;
+
+      return `
+        <div class="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-3.5">
+          <h3 class="font-extrabold text-base text-slate-900">${editH ? 'Update House Details' : 'Add New House'}</h3>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Farm Group</label>
+              <select id="house-form-group" class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold bg-rose-50/30">
+                ${appState.groups.map(g => `<option value="${g.id}" ${(editH ? editH.groupId : selectedGroupId) === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">House Number</label>
+              <input id="house-form-number" type="text" placeholder="e.g. H7" value="${editH ? editH.number : ''}"
+                class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Birds Intake</label>
+              <input id="house-form-intake" type="number" min="0" placeholder="30000" value="${editH ? editH.birdsIntake : ''}"
+                class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Supplier</label>
+              <input id="house-form-supplier" type="text" placeholder="e.g. CP Breeder" value="${editH ? editH.supplier : ''}"
+                class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Date Intake (Day 0, Next Day = Day 1)</label>
+            <input id="house-form-date" type="date" value="${editH ? editH.intakeDate : getTodayDateStr()}"
+              class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
+          </div>
+
+          <div class="flex gap-2">
+            ${editH ? `<button type="button" onclick="cancelEditHouse()" class="px-4 py-3 rounded-2xl border border-slate-200 text-xs font-bold text-slate-600">Cancel</button>` : ''}
+            <button type="button" onclick="saveHouseForm()" class="flex-1 py-3 rounded-2xl bg-[#9f1239] text-white font-extrabold text-xs shadow-md">
+              ${editH ? 'Update House & Sync Dropbox' : 'Add House & Sync Dropbox'}
+            </button>
+          </div>
+        </div>
+
+        <div class="space-y-2.5">
+          <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 px-1">Configured Houses (${appState.houses.length})</h4>
+          ${appState.houses.map(h => {
+            const g = getGroupById(h.groupId);
+            const age = calculateBirdAge(h.intakeDate, getTodayDateStr());
+            return `
+              <div class="bg-white rounded-2xl p-3.5 border border-rose-100 flex items-center justify-between gap-2">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded-md bg-rose-100 text-[#9f1239] text-[11px] font-extrabold">${g ? g.name : '-'} • ${h.number}</span>
+                    <span class="text-[11px] font-bold text-slate-500">Day ${age}</span>
+                  </div>
+                  <p class="text-xs font-bold text-slate-800 mt-1">${Number(h.birdsIntake).toLocaleString()} Birds • ${h.supplier}</p>
+                  <p class="text-[11px] text-slate-400">Intake Date: ${h.intakeDate}</p>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" onclick="startEditHouse('${h.id}')" class="p-2 rounded-xl bg-rose-50 text-[#9f1239] hover:bg-rose-100"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                  <button type="button" onclick="deleteHouse('${h.id}')" class="p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function startEditHouse(hid) {
+      editingHouseId = hid;
+      renderApp();
+    }
+
+    function cancelEditHouse() {
+      editingHouseId = null;
+      renderApp();
+    }
+
+    async function saveHouseForm() {
+      const groupId = document.getElementById('house-form-group').value;
+      const number = document.getElementById('house-form-number').value.trim().toUpperCase();
+      const birdsIntake = Math.max(0, parseInt(document.getElementById('house-form-intake').value || '0', 10));
+      const supplier = document.getElementById('house-form-supplier').value.trim() || 'Standard Supplier';
+      const intakeDate = document.getElementById('house-form-date').value || getTodayDateStr();
+
+      if (!number) {
+        showToast('Enter a House Number (e.g. H1)', true);
+        return;
+      }
+
+      if (editingHouseId) {
+        const h = getHouseById(editingHouseId);
+        if (h) Object.assign(h, { groupId, number, birdsIntake, supplier, intakeDate });
+        editingHouseId = null;
+      } else {
+        appState.houses.push({
+          id: 'h-' + Date.now(),
+          groupId,
+          number,
+          birdsIntake,
+          supplier,
+          intakeDate
+        });
+      }
+
+      renderApp();
+      await saveAndSync(true, 'House saved & synced to Dropbox');
+    }
+
+    async function deleteHouse(hid) {
+      appState.houses = appState.houses.filter(h => h.id !== hid);
+      renderApp();
+      await saveAndSync(true, 'House removed & synced');
+    }
+
+    // ADMIN TAB C: GROUPS
+    function renderAdminGroupsTab() {
+      const editG = editingGroupId ? getGroupById(editingGroupId) : null;
+
+      return `
+        <div class="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-3.5">
+          <h3 class="font-extrabold text-base text-slate-900">${editG ? 'Update Farm Group' : 'Add Farm Group'}</h3>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Group Name</label>
+              <input id="group-form-name" type="text" placeholder="e.g. FARM E" value="${editG ? editG.name : ''}"
+                class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Location / Tag Code</label>
+              <input id="group-form-code" type="text" placeholder="e.g. KP" value="${editG ? editG.code : ''}"
+                class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
+            </div>
+          </div>
+
+          <div class="flex gap-2">
+            ${editG ? `<button type="button" onclick="cancelEditGroup()" class="px-4 py-3 rounded-2xl border border-slate-200 text-xs font-bold text-slate-600">Cancel</button>` : ''}
+            <button type="button" onclick="saveGroupForm()" class="flex-1 py-3 rounded-2xl bg-[#9f1239] text-white font-extrabold text-xs shadow-md">
+              ${editG ? 'Update Group & Sync Dropbox' : 'Add Group & Sync Dropbox'}
+            </button>
+          </div>
+        </div>
+
+        <div class="space-y-2.5">
+          <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 px-1">Farm Groups (${appState.groups.length})</h4>
+          ${appState.groups.map(g => {
+            const count = getHousesByGroup(g.id).length;
+            return `
+              <div class="bg-white rounded-2xl p-3.5 border border-rose-100 flex items-center justify-between">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-extrabold text-sm text-slate-900">${g.name}</span>
+                    <span class="px-2 py-0.5 rounded-md bg-rose-100 text-[#9f1239] text-[10px] font-extrabold">${g.code}</span>
+                  </div>
+                  <p class="text-xs text-slate-500 mt-0.5">${count} Houses • Cycle ${g.cycleNumber} (${g.batchDays} Days)</p>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" onclick="startEditGroup('${g.id}')" class="p-2 rounded-xl bg-rose-50 text-[#9f1239]"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                  ${appState.groups.length > 1 ? `<button type="button" onclick="deleteGroup('${g.id}')" class="p-2 rounded-xl bg-red-50 text-red-600"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function startEditGroup(gid) {
+      editingGroupId = gid;
+      renderApp();
+    }
+
+    function cancelEditGroup() {
+      editingGroupId = null;
+      renderApp();
+    }
+
+    async function saveGroupForm() {
+      const name = document.getElementById('group-form-name').value.trim().toUpperCase();
+      const code = document.getElementById('group-form-code').value.trim().toUpperCase() || 'MIV';
+      if (!name) {
+        showToast('Enter a Group Name', true);
+        return;
+      }
+
+      if (editingGroupId) {
+        const g = getGroupById(editingGroupId);
+        if (g) { g.name = name; g.code = code; }
+        editingGroupId = null;
+      } else {
+        appState.groups.push({
+          id: 'grp-' + Date.now(),
+          name,
+          code,
+          cycleNumber: 76,
+          batchDays: 60,
+          cycleStartDate: getTodayDateStr()
+        });
+      }
+
+      renderApp();
+      await saveAndSync(true, 'Farm group updated & synced');
+    }
+
+    async function deleteGroup(gid) {
+      appState.groups = appState.groups.filter(g => g.id !== gid);
+      appState.houses = appState.houses.filter(h => h.groupId !== gid);
+      renderApp();
+      await saveAndSync(true, 'Group removed & synced');
+    }
+
+    // ADMIN TAB D: PER-GROUP CYCLE SETTINGS & SECURITY PIN SETTINGS
+    function renderAdminCycleAndPinTab() {
+      const targetGroup = getGroupById(adminCycleGroupId) || appState.groups[0];
+
+      return `
+        <div class="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-extrabold text-base text-slate-900">Cycle Settings by Group</h3>
+            <span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-[#9f1239] text-[11px] font-extrabold">Per-Group</span>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1.5">Select Farm Group to Configure</label>
+            <select onchange="handleAdminCycleGroupChange(this.value)" class="w-full px-3.5 py-3 rounded-2xl border border-rose-200 text-xs font-extrabold text-slate-900 bg-rose-50/40">
+              ${appState.groups.map(g => `<option value="${g.id}" ${g.id === targetGroup?.id ? 'selected' : ''}>${g.name} (${g.code}) — Cycle ${g.cycleNumber}</option>`).join('')}
+            </select>
+          </div>
+
+          ${targetGroup ? `
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Cycle Number</label>
+                <input id="cycle-num-input" type="number" min="1" value="${targetGroup.cycleNumber}"
+                  class="w-full px-4 py-3 rounded-2xl border border-rose-200 text-sm font-extrabold text-slate-900" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Batch Days</label>
+                <input id="cycle-days-input" type="number" min="1" value="${targetGroup.batchDays}"
+                  class="w-full px-4 py-3 rounded-2xl border border-rose-200 text-sm font-extrabold text-slate-900" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">Cycle Start Date (${targetGroup.name})</label>
+              <input id="cycle-date-input" type="date" value="${targetGroup.cycleStartDate}"
+                class="w-full px-4 py-3 rounded-2xl border border-rose-200 text-sm font-extrabold text-slate-900" />
+            </div>
+
+            <button type="button" onclick="saveGroupCycleSettings()" class="w-full py-3.5 rounded-2xl bg-[#9f1239] hover:bg-[#881337] text-white font-extrabold text-xs shadow-md transition">
+              Save ${targetGroup.name} Cycle Settings &amp; Sync Dropbox
+            </button>
+          ` : ''}
+
+          <div class="pt-2 border-t border-rose-100 space-y-2">
+            <span class="block text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Active Group Cycle Schedule</span>
+            <div class="grid grid-cols-2 gap-2">
+              ${appState.groups.map(g => `
+                <div onclick="handleAdminCycleGroupChange('${g.id}')" class="p-2.5 rounded-xl bg-rose-50/70 border border-rose-100 text-xs cursor-pointer hover:border-rose-300">
+                  <div class="font-extrabold text-[#9f1239]">${g.name} • Cyc ${g.cycleNumber}</div>
+                  <div class="text-[11px] text-slate-600 mt-0.5">${g.cycleStartDate} (${g.batchDays}d)</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-3.5">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-xl bg-rose-100 text-[#9f1239] flex items-center justify-center">
+              <i data-lucide="key-round" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="font-extrabold text-base text-slate-900">PIN Security Settings</h3>
+              <p class="text-[11px] text-slate-500">Protects Farm Manager &amp; My Logs Amend/Delete</p>
+            </div>
+          </div>
+
+          <div class="space-y-2.5">
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">Current Security PIN</label>
+              <input id="pin-current-input" type="password" inputmode="numeric" maxlength="8" placeholder="Enter current PIN"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-sm font-bold" />
+            </div>
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">New PIN (4-8 digits)</label>
+                <input id="pin-new-input" type="password" inputmode="numeric" maxlength="8" placeholder="New PIN"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-sm font-bold" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Confirm New PIN</label>
+                <input id="pin-confirm-input" type="password" inputmode="numeric" maxlength="8" placeholder="Confirm PIN"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-sm font-bold" />
+              </div>
+            </div>
+          </div>
+
+          <button type="button" onclick="updateSecurityPin()" class="w-full py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs shadow-md transition">
+            Update Security PIN &amp; Sync Dropbox
+          </button>
+        </div>
+      `;
+    }
+
+    function handleAdminCycleGroupChange(gid) {
+      adminCycleGroupId = gid;
+      renderApp();
+    }
+
+    async function saveGroupCycleSettings() {
+      const grp = getGroupById(adminCycleGroupId);
+      if (!grp) return;
+      grp.cycleNumber = Math.max(1, parseInt(document.getElementById('cycle-num-input').value || '1', 10));
+      grp.batchDays = Math.max(1, parseInt(document.getElementById('cycle-days-input').value || '60', 10));
+      grp.cycleStartDate = document.getElementById('cycle-date-input').value || grp.cycleStartDate;
+
+      renderApp();
+      await saveAndSync(true, `${grp.name} Cycle ${grp.cycleNumber} saved & synced`);
+    }
+
+    async function updateSecurityPin() {
+      const cur = document.getElementById('pin-current-input').value.trim();
+      const next = document.getElementById('pin-new-input').value.trim();
+      const conf = document.getElementById('pin-confirm-input').value.trim();
+
+      if (cur !== appState.pin) {
+        showToast('Current PIN is incorrect', true);
+        return;
+      }
+      if (!/^\d{4,8}$/.test(next)) {
+        showToast('New PIN must be 4 to 8 digits', true);
+        return;
+      }
+      if (next !== conf) {
+        showToast('New PIN and confirmation do not match', true);
+        return;
+      }
+
+      appState.pin = next;
+      document.getElementById('pin-current-input').value = '';
+      document.getElementById('pin-new-input').value = '';
+      document.getElementById('pin-confirm-input').value = '';
+      await saveAndSync(true, 'Security PIN updated & synced to Dropbox');
+    }
+
+    // =========================================================================
+    // 12. DROPBOX MODAL CONTROLS & 1-TAP DEVICE LINK
+    // =========================================================================
+    function openDropboxModal() {
+      document.getElementById('dropbox-refresh-input').value = dbxCreds.refreshToken || '';
+      document.getElementById('dropbox-appkey-input').value = dbxCreds.appKey || '';
+      document.getElementById('dropbox-appsecret-input').value = dbxCreds.appSecret || '';
+      document.getElementById('dropbox-token-input').value = dbxCreds.accessToken || '';
+      const info = document.getElementById('dropbox-last-sync');
+      info.textContent = hasDropboxAuth()
+        ? (lastSyncTime ? `Connected • Last synced at ${lastSyncTime}` : 'Credentials configured • Ready to sync /data/mortality.json')
+        : 'Local cache active. Enter token to enable cloud sync.';
+      document.getElementById('dropbox-modal').classList.remove('hidden');
+    }
+
+    function closeDropboxModal() {
+      document.getElementById('dropbox-modal').classList.add('hidden');
+    }
+
+    async function saveDropboxToken() {
+      dbxCreds.refreshToken = document.getElementById('dropbox-refresh-input').value.trim();
+      dbxCreds.appKey = document.getElementById('dropbox-appkey-input').value.trim();
+      dbxCreds.appSecret = document.getElementById('dropbox-appsecret-input').value.trim();
+      dbxCreds.accessToken = document.getElementById('dropbox-token-input').value.trim();
+      dbxCreds.expiresAt = 0;
+
+      if (hasDropboxAuth()) {
+        localStorage.setItem(CREDS_KEY, JSON.stringify(dbxCreds));
+        if (dbxCreds.accessToken) localStorage.setItem(TOKEN_KEY, dbxCreds.accessToken);
+      } else {
+        localStorage.removeItem(CREDS_KEY);
+        localStorage.removeItem(TOKEN_KEY);
+      }
+      closeDropboxModal();
+      await pullFromDropbox(true);
+    }
+
+    function copyNewDeviceSyncLink() {
+      const rk = document.getElementById('dropbox-refresh-input').value.trim() || dbxCreds.refreshToken;
+      const ak = document.getElementById('dropbox-appkey-input').value.trim() || dbxCreds.appKey;
+      const as = document.getElementById('dropbox-appsecret-input').value.trim() || dbxCreds.appSecret;
+      const at = document.getElementById('dropbox-token-input').value.trim() || dbxCreds.accessToken;
+
+      if (!rk && !at) {
+        showToast('Enter Refresh Token or Access Token first', true);
+        return;
+      }
+      const payload = {};
+      if (rk) payload.rk = rk;
+      if (ak) payload.ak = ak;
+      if (as) payload.as = as;
+      if (!rk && at) payload.at = at;
+
+      const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+      const url = `${window.location.origin}${window.location.pathname}#dbx=${b64}`;
+      copyToClipboardSafe(url);
+      showToast('1-Tap New Device Sync Link copied!');
+    }
+
+    // =========================================================================
+    // 13. BOOTSTRAP & BACKGROUND MULTI-DEVICE SYNC POLLING
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      renderApp();
+      if (hasDropboxAuth()) {
+        setDropboxIndicator('live', 'Dropbox Live');
+        pullFromDropbox(false);
+      }
+      setInterval(() => {
+        if (!document.hidden && hasDropboxAuth()) {
+          pullFromDropbox(false);
+        }
+      }, 25000);
+    });
+  </script>
+</body>
+</html>
