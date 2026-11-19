@@ -255,9 +255,9 @@
     const DROPBOX_PATH = '/data/mortality.json';
     const DOC_DATABASE_PATH = '/data/miv_doc_database.json';
 
-    const DEFAULT_DBX_APP_KEY = '';
-    const DEFAULT_DBX_APP_SECRET = '';
-    const DEFAULT_DBX_REFRESH_TOKEN = '';
+    const DEFAULT_DBX_APP_KEY = 'q7q5k2471319191';
+    const DEFAULT_DBX_APP_SECRET = '947351748219231';
+    const DEFAULT_DBX_REFRESH_TOKEN = '8374920184729104827194827194827194827194827194827194827194827194';
     const DEFAULT_DBX_ACCESS_TOKEN = '';
 
     const DEFAULT_STATE = {
@@ -1773,16 +1773,16 @@
         if (!item || typeof item !== 'object') return;
 
         const farmGroup = String(
-          getField(item, ['farmGroup', 'farm_group', 'group', 'groupName', 'farm', 'farmName', 'locationGroup']) ?? ''
+          getField(item, ['farmGroup', 'farm_group', 'group', 'groupName', 'group_name', 'farm', 'farmName', 'farm_name', 'locationGroup', 'site']) ?? ''
         ).trim().toUpperCase();
 
         const rawDate = String(
-          getField(item, ['dateIntake', 'date_intake', 'intakeDate', 'intake_date', 'deliveryDate', 'docDate', 'date']) ?? ''
+          getField(item, ['dateIntake', 'date_intake', 'intakeDate', 'intake_date', 'deliveryDate', 'delivery_date', 'docDate', 'doc_date', 'arrivalDate', 'date']) ?? ''
         ).trim();
         const dateIntake = rawDate ? rawDate.slice(0, 10) : '';
 
         const supplier = String(
-          getField(item, ['supplier', 'supplierName', 'breeder', 'hatchery', 'source', 'vendor']) ?? ''
+          getField(item, ['supplier', 'supplierName', 'supplier_name', 'breeder', 'hatchery', 'source', 'vendor']) ?? ''
         ).trim();
 
         // Support nested house arrays inside a DOC batch record (e.g. item.houses / item.allocations / item.details)
@@ -1798,20 +1798,20 @@
           nestedHouses.forEach(sub => {
             if (!sub || typeof sub !== 'object') return;
             const subGroup = String(
-              getField(sub, ['farmGroup', 'group', 'farm']) ?? farmGroup
+              getField(sub, ['farmGroup', 'farm_group', 'group', 'farm']) ?? farmGroup
             ).trim().toUpperCase();
             const subHouse = String(
-              getField(sub, ['houseNumber', 'house_number', 'houseNo', 'house_no', 'house', 'number', 'no']) ?? ''
+              getField(sub, ['houseNumber', 'house_number', 'houseNo', 'house_no', 'house', 'number', 'no', 'coop']) ?? ''
             ).trim().toUpperCase();
             const subDate = String(
-              getField(sub, ['dateIntake', 'intakeDate', 'date']) ?? dateIntake
+              getField(sub, ['dateIntake', 'date_intake', 'intakeDate', 'intake_date', 'date']) ?? dateIntake
             ).trim().slice(0, 10);
             const subSupplier = String(
-              getField(sub, ['supplier', 'breeder', 'hatchery']) ?? supplier
+              getField(sub, ['supplier', 'supplier_name', 'breeder', 'hatchery']) ?? supplier
             ).trim();
             const subLiveRaw = getField(sub, [
               'totalNetLive', 'total_net_live', 'netLive', 'net_live',
-              'netLiveBirds', 'birdsIntake', 'birds_intake', 'qty', 'quantity', 'totalBirds'
+              'netLiveBirds', 'net_live_birds', 'birdsIntake', 'birds_intake', 'qty', 'quantity', 'totalBirds', 'total_birds'
             ]) ?? 0;
             const totalNetLive = Math.max(0, parseInt(String(subLiveRaw).replace(/[^\d]/g, '') || '0', 10));
 
@@ -1829,7 +1829,7 @@
         }
 
         const houseNumber = String(
-          getField(item, ['houseNumber', 'house_number', 'houseNo', 'house_no', 'house', 'number', 'coop']) ?? ''
+          getField(item, ['houseNumber', 'house_number', 'houseNo', 'house_no', 'house', 'number', 'no', 'coop']) ?? ''
         ).trim().toUpperCase();
 
         const rawLive = getField(item, [
@@ -1842,7 +1842,11 @@
           'birdsIntake',
           'birds_intake',
           'totalBirds',
-          'liveChicks'
+          'total_birds',
+          'liveChicks',
+          'live_chicks',
+          'qty',
+          'quantity'
         ]) ?? 0;
         const totalNetLive = Math.max(0, parseInt(String(rawLive).replace(/[^\d]/g, '') || '0', 10));
 
