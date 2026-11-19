@@ -298,6 +298,7 @@
 
     // Cycle Summary Filter State
     let summaryFilterGroupId = 'all';
+    let summaryFilterHouseId = 'all';
 
     // Admin Sub-view State
     let reportGroupId = appState.groups[0]?.id || '';
@@ -1213,6 +1214,12 @@
     // =========================================================================
     function setSummaryGroupFilter(groupId) {
       summaryFilterGroupId = groupId;
+      summaryFilterHouseId = 'all';
+      renderApp();
+    }
+
+    function setSummaryHouseFilter(houseId) {
+      summaryFilterHouseId = houseId;
       renderApp();
     }
 
@@ -1251,6 +1258,39 @@
         ? groupSummaries
         : groupSummaries.filter(gs => gs.group.id === summaryFilterGroupId);
 
+      // Build flat list of houses scoped to the currently selected group filter
+      const scopedHouseItems = visibleGroupSummaries.flatMap(({ group, houses }) =>
+        houses.map(h => {
+          const hLogs = appState.logs.filter(l => l.houseId === h.id);
+          const deadSum = hLogs.reduce((s, l) => s + Number(l.dead || 0), 0);
+          const cullSum = hLogs.reduce((s, l) => s + Number(l.cull || 0), 0);
+          const tot = deadSum + cullSum;
+          const pct = h.birdsIntake > 0 ? ((tot / h.birdsIntake) * 100).toFixed(2) : '0.00';
+          const age = calculateBirdAge(h.intakeDate, getTodayDateStr());
+          const batchDays = group.batchDays || 60;
+          const progress = Math.min(100, Math.round((age / batchDays) * 100));
+          return {
+            house: h,
+            group,
+            deadSum,
+            cullSum,
+            tot,
+            pct,
+            age,
+            batchDays,
+            progress
+          };
+        })
+      );
+
+      if (summaryFilterHouseId !== 'all' && !scopedHouseItems.some(item => item.house.id === summaryFilterHouseId)) {
+        summaryFilterHouseId = 'all';
+      }
+
+      const visibleHouseItems = summaryFilterHouseId === 'all'
+        ? scopedHouseItems
+        : scopedHouseItems.filter(item => item.house.id === summaryFilterHouseId);
+
       return `
         <!-- Executive Overview Banner -->
         <div class="bg-gradient-to-br from-[#881337] to-[#be123c] rounded-3xl p-5 text-white shadow-lg">
@@ -1275,7 +1315,7 @@
           <div class="flex items-center justify-between px-1">
             <div>
               <h3 class="font-extrabold text-sm text-slate-900">Summary by Group</h3>
-              <p class="text-[11px] text-slate-500">Tap any group card or pill to filter house breakdown</p>
+              <p class="text-[11px] text-slate-500">Tap any group card or pill to filter Summary by House</p>
             </div>
             <span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-[#9f1239] text-[11px] font-extrabold">${appState.groups.length} Groups</span>
           </div>
@@ -1347,65 +1387,91 @@
           </div>
         </div>
 
-        <!-- Per-Group & Per-House Breakdown Cards -->
-        <div class="pt-1 space-y-4">
+        <!-- Dedicated Summary by House Section -->
+        <div class="pt-1 space-y-2.5">
           <div class="flex items-center justify-between px-1">
-            <h3 class="font-extrabold text-sm text-slate-900">House Breakdown (${summaryFilterGroupId === 'all' ? 'All Groups' : (getGroupById(summaryFilterGroupId)?.name || '')})</h3>
-            ${summaryFilterGroupId !== 'all' ? `
-              <button type="button" onclick="setSummaryGroupFilter('all')" class="text-xs font-extrabold text-[#9f1239] hover:underline">Show All</button>
-            ` : ''}
+            <div>
+              <h3 class="font-extrabold text-sm text-slate-900">Summary by House (${summaryFilterGroupId === 'all' ? 'All Groups' : (getGroupById(summaryFilterGroupId)?.name || '')})</h3>
+              <p class="text-[11px] text-slate-500">Tap any house pill to inspect individual house mortality</p>
+            </div>
+            <span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-[#9f1239] text-[11px] font-extrabold">${scopedHouseItems.length} ${scopedHouseItems.length === 1 ? 'House' : 'Houses'}</span>
           </div>
 
-          ${visibleGroupSummaries.map(({ group, houses }) => {
-            return `
-              <div class="space-y-2.5">
-                <div class="flex items-center justify-between px-1">
-                  <div class="flex items-center gap-2">
-                    <h4 class="font-extrabold text-xs uppercase tracking-wider text-slate-700">${group.name}</h4>
-                    <span class="px-2 py-0.5 rounded-md bg-rose-100 text-[#9f1239] text-[10px] font-extrabold">${group.code}</span>
-                  </div>
-                  <span class="text-xs font-bold text-[#9f1239]">Cycle ${group.cycleNumber} • ${group.batchDays}d</span>
-                </div>
+          ${scopedHouseItems.length === 0 ? `
+            <div class="bg-white rounded-2xl p-6 text-center border border-rose-100 text-xs text-slate-500">
+              No houses configured for this group yet.
+            </div>
+          ` : `
+            <!-- House Quick-Filter Pills -->
+            <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              <button type="button" onclick="setSummaryHouseFilter('all')" class="px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition ${
+                summaryFilterHouseId === 'all' ? 'bg-[#9f1239] text-white shadow-xs' : 'bg-white text-slate-600 border border-rose-100 hover:border-rose-300'
+              }">All Houses (${scopedHouseItems.length})</button>
+              ${scopedHouseItems.map(({ house, group }) => `
+                <button type="button" onclick="setSummaryHouseFilter('${house.id}')" class="px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition ${
+                  summaryFilterHouseId === house.id ? 'bg-[#9f1239] text-white shadow-xs' : 'bg-white text-slate-600 border border-rose-100 hover:border-rose-300'
+                }">${summaryFilterGroupId === 'all' ? `${group.name} • ` : ''}${house.number}</button>
+              `).join('')}
+            </div>
 
-                <div class="grid grid-cols-2 gap-2.5">
-                  ${houses.map(h => {
-                    const hLogs = appState.logs.filter(l => l.houseId === h.id);
-                    const deadSum = hLogs.reduce((s, l) => s + Number(l.dead || 0), 0);
-                    const cullSum = hLogs.reduce((s, l) => s + Number(l.cull || 0), 0);
-                    const tot = deadSum + cullSum;
-                    const pct = h.birdsIntake > 0 ? ((tot / h.birdsIntake) * 100).toFixed(2) : '0.00';
-                    const age = calculateBirdAge(h.intakeDate, getTodayDateStr());
-                    const progress = Math.min(100, Math.round((age / (group.batchDays || 60)) * 100));
-
-                    return `
-                      <div class="bg-white rounded-2xl p-3.5 border border-rose-100 shadow-2xs space-y-2.5">
-                        <div class="flex items-center justify-between">
-                          <span class="px-2.5 py-0.5 rounded-lg bg-[#9f1239] text-white text-xs font-extrabold">${h.number}</span>
-                          <span class="text-[11px] font-bold text-slate-500">Day ${age}/${group.batchDays}</span>
+            <!-- Per-House Detailed Summary Cards -->
+            <div class="space-y-2.5">
+              ${visibleHouseItems.map(({ house, group, deadSum, cullSum, tot, pct, age, batchDays, progress }) => {
+                const isSelectedHouse = summaryFilterHouseId === house.id;
+                return `
+                  <div onclick="setSummaryHouseFilter('${isSelectedHouse ? 'all' : house.id}')"
+                    class="bg-white rounded-2xl p-4 border-2 transition cursor-pointer shadow-2xs space-y-3 ${
+                      isSelectedHouse ? 'border-[#9f1239] ring-2 ring-rose-200/70' : 'border-rose-100 hover:border-rose-300'
+                    }">
+                    <div class="flex items-start justify-between gap-2">
+                      <div>
+                        <div class="flex items-center gap-2">
+                          <span class="px-2.5 py-0.5 rounded-lg bg-[#9f1239] text-white text-xs font-extrabold">${house.number}</span>
+                          <span class="font-black text-sm text-slate-900">${group.name}</span>
+                          <span class="px-2 py-0.5 rounded-md bg-rose-50 text-[#9f1239] text-[10px] font-extrabold">${group.code} • C${group.cycleNumber}</span>
                         </div>
-
-                        <div>
-                          <div class="flex items-baseline justify-between">
-                            <span class="text-xl font-black text-slate-900">${tot.toLocaleString()}</span>
-                            <span class="text-xs font-extrabold text-[#9f1239]">${pct}%</span>
-                          </div>
-                          <p class="text-[10.5px] text-slate-500 mt-0.5">Dead: ${deadSum} • Cull: ${cullSum}</p>
-                        </div>
-
-                        <div class="w-full h-1.5 bg-rose-100 rounded-full overflow-hidden">
-                          <div class="h-full bg-[#9f1239] rounded-full" style="width: ${progress}%"></div>
-                        </div>
-
-                        <div class="text-[10px] text-slate-400 font-medium truncate">
-                          Intake: ${h.birdsIntake.toLocaleString()} (${h.supplier})
-                        </div>
+                        <p class="text-[11px] text-slate-500 font-medium mt-1">
+                          Day ${age}/${batchDays} • Intake: <strong class="text-slate-700">${Number(house.birdsIntake || 0).toLocaleString()}</strong> • ${house.supplier}
+                        </p>
                       </div>
-                    `;
-                  }).join('')}
-                </div>
-              </div>
-            `;
-          }).join('')}
+
+                      <div class="text-right">
+                        <div class="text-lg font-black text-[#881337] leading-none">${tot.toLocaleString()}</div>
+                        <span class="inline-block mt-1 px-2 py-0.5 rounded-full bg-rose-50 text-[#9f1239] text-[11px] font-extrabold">${pct}%</span>
+                      </div>
+                    </div>
+
+                    <!-- Dead / Cull / Batch Progress Breakdown -->
+                    <div class="grid grid-cols-3 gap-2 text-[11px]">
+                      <div class="bg-rose-50/70 px-2.5 py-1.5 rounded-xl flex items-center justify-between">
+                        <span class="text-slate-500 font-medium">Dead:</span>
+                        <span class="font-extrabold text-[#9f1239]">${deadSum.toLocaleString()}</span>
+                      </div>
+                      <div class="bg-amber-50/80 px-2.5 py-1.5 rounded-xl flex items-center justify-between">
+                        <span class="text-slate-500 font-medium">Cull:</span>
+                        <span class="font-extrabold text-amber-800">${cullSum.toLocaleString()}</span>
+                      </div>
+                      <div class="bg-slate-50 px-2.5 py-1.5 rounded-xl flex items-center justify-between">
+                        <span class="text-slate-500 font-medium">Batch:</span>
+                        <span class="font-extrabold text-slate-800">${progress}%</span>
+                      </div>
+                    </div>
+
+                    <!-- Visual Batch Progress Bar -->
+                    <div class="space-y-1">
+                      <div class="w-full h-2 bg-rose-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-[#9f1239] to-[#e11d48] rounded-full transition-all" style="width: ${progress}%"></div>
+                      </div>
+                      <div class="flex items-center justify-between text-[10px] text-slate-400 font-medium">
+                        <span>Intake Date: ${house.intakeDate || '-'}</span>
+                        <span>Remaining Live: ${Math.max(0, Number(house.birdsIntake || 0) - tot).toLocaleString()} birds</span>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
         </div>
       `;
     }
