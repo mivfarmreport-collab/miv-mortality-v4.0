@@ -56,7 +56,7 @@
           <button type="button" onclick="switchTab('logs')" class="relative w-9 h-9 rounded-full bg-black/20 hover:bg-black/30 border border-white/15 flex items-center justify-center transition active:scale-95" title="View Logs">
             <i data-lucide="bell" class="w-4 h-4 text-white"></i>
             <span id="log-count-badge" class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-400 text-[#881337] text-[10px] font-extrabold flex items-center justify-center shadow">
-              6
+              0
             </span>
           </button>
         </div>
@@ -247,57 +247,31 @@
 
   <script>
     // =========================================================================
-    // 0. OPTIONAL BUILT-IN CREDENTIALS FOR GITHUB PAGES AUTO-SYNC
-    // =========================================================================
-    const DEFAULT_DBX_APP_KEY = '';
-    const DEFAULT_DBX_APP_SECRET = '';
-    const DEFAULT_DBX_REFRESH_TOKEN = '';
-    const DEFAULT_DBX_ACCESS_TOKEN = '';
-
-    // =========================================================================
-    // 1. STATE & DEFAULT FARM CONFIGURATION (MATCHES SCREENSHOT DESIGN)
+    // 1. STATE & DEFAULT FARM CONFIGURATION (CLEAN PRODUCTION STATE)
     // =========================================================================
     const STORAGE_KEY = 'miv_mortality_state_v2';
     const TOKEN_KEY = 'miv_dropbox_token_v2';
     const CREDS_KEY = 'miv_dropbox_creds_v2';
     const DROPBOX_PATH = '/data/mortality.json';
+    const DOC_DATABASE_PATH = '/data/miv_doc_database.json';
+
+    const DEFAULT_DBX_APP_KEY = '';
+    const DEFAULT_DBX_APP_SECRET = '';
+    const DEFAULT_DBX_REFRESH_TOKEN = '';
+    const DEFAULT_DBX_ACCESS_TOKEN = '';
 
     const DEFAULT_STATE = {
       pin: '1234',
       deletedLogIds: [],
       updatedAt: null,
       groups: [
-        { id: 'grp-a', name: 'FARM A', code: 'KP', cycleNumber: 76, batchDays: 60, cycleStartDate: '2026-11-05' },
-        { id: 'grp-b', name: 'FARM B', code: 'KP', cycleNumber: 75, batchDays: 60, cycleStartDate: '2026-11-06' },
-        { id: 'grp-c', name: 'FARM C', code: 'DANGI', cycleNumber: 77, batchDays: 60, cycleStartDate: '2026-11-01' },
-        { id: 'grp-d', name: 'FARM D', code: 'GADDES', cycleNumber: 74, batchDays: 60, cycleStartDate: '2026-11-10' }
+        { id: 'grp-a', name: 'FARM A', code: 'KP', cycleNumber: 76, batchDays: 60, cycleStartDate: '' },
+        { id: 'grp-b', name: 'FARM B', code: 'KP', cycleNumber: 75, batchDays: 60, cycleStartDate: '' },
+        { id: 'grp-c', name: 'FARM C', code: 'DANGI', cycleNumber: 77, batchDays: 60, cycleStartDate: '' },
+        { id: 'grp-d', name: 'FARM D', code: 'GADDES', cycleNumber: 74, batchDays: 60, cycleStartDate: '' }
       ],
-      houses: [
-        { id: 'h-a1', groupId: 'grp-a', number: 'H1', birdsIntake: 32000, supplier: 'CP Breeder', intakeDate: '2026-11-05' },
-        { id: 'h-a2', groupId: 'grp-a', number: 'H2', birdsIntake: 32000, supplier: 'CP Breeder', intakeDate: '2026-11-05' },
-        { id: 'h-a3', groupId: 'grp-a', number: 'H3', birdsIntake: 30500, supplier: 'Leong Hup', intakeDate: '2026-11-06' },
-        { id: 'h-a4', groupId: 'grp-a', number: 'H4', birdsIntake: 30500, supplier: 'Leong Hup', intakeDate: '2026-11-06' },
-        { id: 'h-a5', groupId: 'grp-a', number: 'H5', birdsIntake: 31000, supplier: 'CP Breeder', intakeDate: '2026-11-07' },
-        { id: 'h-a6', groupId: 'grp-a', number: 'H6', birdsIntake: 31000, supplier: 'CP Breeder', intakeDate: '2026-11-07' },
-        { id: 'h-b1', groupId: 'grp-b', number: 'H1', birdsIntake: 28000, supplier: 'Cobb Asia', intakeDate: '2026-11-06' },
-        { id: 'h-b2', groupId: 'grp-b', number: 'H2', birdsIntake: 28000, supplier: 'Cobb Asia', intakeDate: '2026-11-06' },
-        { id: 'h-b3', groupId: 'grp-b', number: 'H3', birdsIntake: 29000, supplier: 'Cobb Asia', intakeDate: '2026-11-07' },
-        { id: 'h-b4', groupId: 'grp-b', number: 'H4', birdsIntake: 29000, supplier: 'Cobb Asia', intakeDate: '2026-11-07' },
-        { id: 'h-c1', groupId: 'grp-c', number: 'H1', birdsIntake: 35000, supplier: 'Aviagen', intakeDate: '2026-11-01' },
-        { id: 'h-c2', groupId: 'grp-c', number: 'H2', birdsIntake: 35000, supplier: 'Aviagen', intakeDate: '2026-11-01' },
-        { id: 'h-c3', groupId: 'grp-c', number: 'H3', birdsIntake: 34000, supplier: 'Aviagen', intakeDate: '2026-11-02' },
-        { id: 'h-c4', groupId: 'grp-c', number: 'H4', birdsIntake: 34000, supplier: 'Aviagen', intakeDate: '2026-11-02' },
-        { id: 'h-d1', groupId: 'grp-d', number: 'H1', birdsIntake: 29500, supplier: 'Ross Breeder', intakeDate: '2026-11-10' },
-        { id: 'h-d2', groupId: 'grp-d', number: 'H2', birdsIntake: 29500, supplier: 'Ross Breeder', intakeDate: '2026-11-10' }
-      ],
-      logs: [
-        { id: 'log-1', groupId: 'grp-a', houseId: 'h-a1', dateTime: '2026-11-05T07:30', dead: 14, cull: 4 },
-        { id: 'log-2', groupId: 'grp-a', houseId: 'h-a1', dateTime: '2026-11-06T07:45', dead: 18, cull: 6 },
-        { id: 'log-3', groupId: 'grp-a', houseId: 'h-a1', dateTime: '2026-11-16T08:00', dead: 22, cull: 8 },
-        { id: 'log-4', groupId: 'grp-a', houseId: 'h-a1', dateTime: '2026-11-17T08:15', dead: 19, cull: 5 },
-        { id: 'log-5', groupId: 'grp-a', houseId: 'h-a2', dateTime: '2026-11-16T08:10', dead: 15, cull: 4 },
-        { id: 'log-6', groupId: 'grp-b', houseId: 'h-b1', dateTime: '2026-11-17T08:20', dead: 24, cull: 7 }
-      ]
+      houses: [],
+      logs: []
     };
 
     let hasCachedLocalState = Boolean(localStorage.getItem(STORAGE_KEY));
@@ -312,12 +286,12 @@
     let activeUserTab = 'input'; // 'input' | 'logs' | 'summary'
     let activeAdminTab = 'reports'; // 'reports' | 'houses' | 'groups' | 'cycle'
 
-    // Form Selection State
+    // Form Selection State (Cleaned Inputs)
     let selectedGroupId = appState.groups[0]?.id || '';
     let selectedHouseId = getHousesByGroup(selectedGroupId)[0]?.id || '';
     let formDateTime = getLocalDateTimeNow();
-    let formDead = 0;
-    let formCull = 0;
+    let formDead = '';
+    let formCull = '';
 
     // Logs Filter State
     let logFilterGroupId = 'all';
@@ -332,31 +306,40 @@
     let editingGroupId = null;
     let editingHouseId = null;
 
+    // DOC Database (/data/miv_doc_database.json) Extraction State
+    let houseEntryMode = 'manual'; // 'manual' | 'extract'
+    let docDatabaseRecords = [];
+    let docDatabaseStatus = 'idle'; // 'idle' | 'loading' | 'loaded' | 'error'
+    let docDatabaseError = '';
+    let extractFarmGroup = '';
+    let extractHouseNumber = '';
+    let extractDateIntake = '';
+    let extractBirdsIntake = '';
+    let extractSupplier = '';
+
     // Modal Callback State
     let pendingPinCallback = null;
     let amendingLogId = null;
 
     // =========================================================================
-    // 2. CREDENTIAL BOOTSTRAP & MULTI-DEVICE DROPBOX CONTENT API V2 ENGINE
+    // 2. DROPBOX CREDENTIALS & MULTI-DEVICE SYNC ENGINE
     // =========================================================================
     function loadDropboxCredentials() {
-      let creds = {
-        appKey: (DEFAULT_DBX_APP_KEY || '').trim(),
-        appSecret: (DEFAULT_DBX_APP_SECRET || '').trim(),
-        refreshToken: (DEFAULT_DBX_REFRESH_TOKEN || '').trim(),
-        accessToken: (localStorage.getItem(TOKEN_KEY) || DEFAULT_DBX_ACCESS_TOKEN || '').trim(),
+      const creds = {
+        appKey: DEFAULT_DBX_APP_KEY,
+        appSecret: DEFAULT_DBX_APP_SECRET,
+        refreshToken: DEFAULT_DBX_REFRESH_TOKEN,
+        accessToken: DEFAULT_DBX_ACCESS_TOKEN || localStorage.getItem(TOKEN_KEY) || '',
         expiresAt: 0
       };
 
       try {
         const saved = localStorage.getItem(CREDS_KEY);
         if (saved) {
-          const p = JSON.parse(saved);
-          if (p.appKey) creds.appKey = p.appKey.trim();
-          if (p.appSecret) creds.appSecret = p.appSecret.trim();
-          if (p.refreshToken) creds.refreshToken = p.refreshToken.trim();
-          if (p.accessToken) creds.accessToken = p.accessToken.trim();
-          if (p.expiresAt) creds.expiresAt = p.expiresAt;
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object') {
+            Object.assign(creds, parsed);
+          }
         }
       } catch (e) {
         console.warn('Error loading Dropbox credentials:', e);
@@ -386,40 +369,54 @@
     }
 
     function hasDropboxAuth() {
-      return Boolean((dbxCreds.refreshToken && dbxCreds.appKey) || dbxCreds.accessToken);
+      return Boolean(
+        (dbxCreds.refreshToken && dbxCreds.appKey) ||
+        (dbxCreds.accessToken && dbxCreds.accessToken.trim())
+      );
     }
 
     function encodeDropboxArg(obj) {
-      return JSON.stringify(obj).replace(/[\u007f-\uffff]/g, (c) =>
+      return JSON.stringify(obj).replace(/[\u007f-\uffff]/g, c =>
         '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4)
       );
     }
 
     async function getActiveBearerToken(forceRefresh = false) {
       if (dbxCreds.refreshToken && dbxCreds.appKey) {
-        if (!forceRefresh && dbxCreds.accessToken && dbxCreds.expiresAt > Date.now() + 300000) {
-          return dbxCreds.accessToken;
-        }
-        const params = new URLSearchParams();
-        params.append('grant_type', 'refresh_token');
-        params.append('refresh_token', dbxCreds.refreshToken);
-        params.append('client_id', dbxCreds.appKey);
-        if (dbxCreds.appSecret) params.append('client_secret', dbxCreds.appSecret);
+        const stillValid =
+          !forceRefresh &&
+          dbxCreds.accessToken &&
+          dbxCreds.expiresAt &&
+          Date.now() < dbxCreds.expiresAt - 60000;
 
-        const res = await fetch('https://api.dropboxapi.com/oauth2/token', {
+        if (stillValid) return dbxCreds.accessToken;
+
+        const bodyParams = new URLSearchParams();
+        bodyParams.append('grant_type', 'refresh_token');
+        bodyParams.append('refresh_token', dbxCreds.refreshToken.trim());
+        bodyParams.append('client_id', dbxCreds.appKey.trim());
+        if (dbxCreds.appSecret && dbxCreds.appSecret.trim()) {
+          bodyParams.append('client_secret', dbxCreds.appSecret.trim());
+        }
+
+        const tokenRes = await fetch('https://api.dropboxapi.com/oauth2/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: params.toString()
+          body: bodyParams.toString()
         });
-        if (!res.ok) throw new Error('OAuth Refresh HTTP ' + res.status);
-        const data = await res.json();
-        dbxCreds.accessToken = data.access_token;
-        dbxCreds.expiresAt = Date.now() + Number(data.expires_in || 14400) * 1000;
+
+        if (!tokenRes.ok) {
+          throw new Error('Dropbox token refresh failed (' + tokenRes.status + ')');
+        }
+
+        const tokenData = await tokenRes.json();
+        dbxCreds.accessToken = tokenData.access_token;
+        dbxCreds.expiresAt = Date.now() + (Number(tokenData.expires_in || 14400) * 1000);
         localStorage.setItem(CREDS_KEY, JSON.stringify(dbxCreds));
         return dbxCreds.accessToken;
       }
-      if (dbxCreds.accessToken) return dbxCreds.accessToken;
-      throw new Error('No Dropbox credentials');
+
+      return (dbxCreds.accessToken || '').trim();
     }
 
     function loadState() {
@@ -428,7 +425,12 @@
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && Array.isArray(parsed.groups) && Array.isArray(parsed.houses) && Array.isArray(parsed.logs)) {
-            return { pin: '1234', deletedLogIds: [], updatedAt: null, ...parsed };
+            return {
+              pin: '1234',
+              deletedLogIds: [],
+              updatedAt: null,
+              ...parsed
+            };
           }
         }
       } catch (e) {
@@ -437,57 +439,82 @@
       return JSON.parse(JSON.stringify(DEFAULT_STATE));
     }
 
-    // Non-destructive multi-device merge so different devices never overwrite each other's new logs
-    function mergeRemoteState(remote) {
-      if (!remote || typeof remote !== 'object') return false;
-      const remoteTime = remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
-      const localTime = appState.updatedAt ? Date.parse(appState.updatedAt) : 0;
-      const remoteNewer = !hasCachedLocalState || remoteTime >= localTime;
-
+    // Merge remote & local states safely so concurrent entries from multiple phones never overwrite each other
+    function mergeFarmStates(localData, remoteData, preferLocalConfig = false) {
       const deletedSet = new Set([
-        ...(Array.isArray(appState.deletedLogIds) ? appState.deletedLogIds : []),
-        ...(Array.isArray(remote.deletedLogIds) ? remote.deletedLogIds : [])
+        ...(Array.isArray(localData.deletedLogIds) ? localData.deletedLogIds : []),
+        ...(Array.isArray(remoteData.deletedLogIds) ? remoteData.deletedLogIds : [])
       ]);
-      appState.deletedLogIds = Array.from(deletedSet).slice(-500);
-
-      if (remote.pin && remoteNewer) appState.pin = String(remote.pin);
-      if (Array.isArray(remote.groups) && remote.groups.length > 0 && remoteNewer) {
-        appState.groups = remote.groups;
-      }
-      if (Array.isArray(remote.houses) && remoteNewer) {
-        appState.houses = remote.houses;
-      }
 
       const logMap = new Map();
-      (Array.isArray(remote.logs) ? remote.logs : []).forEach(l => {
+      (remoteData.logs || []).forEach(l => {
         if (l && l.id && !deletedSet.has(l.id)) logMap.set(l.id, l);
       });
-
-      let localAddedOrAmended = false;
-      (Array.isArray(appState.logs) ? appState.logs : []).forEach(l => {
-        if (!l || !l.id || deletedSet.has(l.id)) return;
-        const existing = logMap.get(l.id);
-        if (!existing) {
-          logMap.set(l.id, l);
-          localAddedOrAmended = true;
-        } else if ((l.amendedAt || '') > (existing.amendedAt || '')) {
-          logMap.set(l.id, l);
-          localAddedOrAmended = true;
+      (localData.logs || []).forEach(l => {
+        if (l && l.id && !deletedSet.has(l.id)) {
+          const existing = logMap.get(l.id);
+          if (!existing || (l.updatedAt || '') >= (existing.updatedAt || '')) {
+            logMap.set(l.id, l);
+          }
         }
       });
 
-      appState.logs = Array.from(logMap.values()).sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
-      if (remote.updatedAt && remoteTime > localTime) {
-        appState.updatedAt = remote.updatedAt;
-      }
-      hasCachedLocalState = true;
-      return localAddedOrAmended;
+      const mergedLogs = Array.from(logMap.values()).sort(
+        (a, b) => new Date(b.dateTime) - new Date(a.dateTime)
+      );
+
+      const useLocalMeta = preferLocalConfig || !hasCachedLocalState ? preferLocalConfig : (
+        (localData.updatedAt || '') > (remoteData.updatedAt || '')
+      );
+
+      const primaryMeta = useLocalMeta ? localData : remoteData;
+
+      return {
+        pin: primaryMeta.pin || '1234',
+        groups: Array.isArray(primaryMeta.groups) && primaryMeta.groups.length > 0 ? primaryMeta.groups : (localData.groups || []),
+        houses: Array.isArray(primaryMeta.houses) ? primaryMeta.houses : (localData.houses || []),
+        logs: mergedLogs,
+        deletedLogIds: Array.from(deletedSet).slice(-500),
+        updatedAt: new Date().toISOString()
+      };
+    }
+
+    async function downloadRemoteJson(token) {
+      const res = await fetch('https://content.dropboxapi.com/2/files/download', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Dropbox-API-Arg': encodeDropboxArg({ path: DROPBOX_PATH })
+        }
+      });
+      if (res.status === 409) return null; // File not created on Dropbox yet
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    }
+
+    async function uploadRemoteJson(token, payload) {
+      const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Dropbox-API-Arg': encodeDropboxArg({
+            path: DROPBOX_PATH,
+            mode: 'overwrite',
+            autorename: false,
+            mute: true
+          }),
+          'Content-Type': 'application/octet-stream'
+        },
+        body: JSON.stringify(payload, null, 2)
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
     }
 
     async function saveAndSync(showNotification = false, customMsg = 'Synced to Dropbox (/data/mortality.json)') {
       appState.updatedAt = new Date().toISOString();
-      hasCachedLocalState = true;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      hasCachedLocalState = true;
       updateHeaderBadges();
 
       if (!hasDropboxAuth()) {
@@ -503,47 +530,30 @@
 
       try {
         let token = await getActiveBearerToken(false);
-        const bodyStr = JSON.stringify(appState, null, 2);
 
-        let response = await fetch('https://content.dropboxapi.com/2/files/upload', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + token,
-            'Dropbox-API-Arg': encodeDropboxArg({
-              path: DROPBOX_PATH,
-              mode: 'overwrite',
-              autorename: false,
-              mute: true
-            }),
-            'Content-Type': 'application/octet-stream'
-          },
-          body: bodyStr
-        });
-
-        if (response.status === 401 && dbxCreds.refreshToken) {
-          token = await getActiveBearerToken(true);
-          response = await fetch('https://content.dropboxapi.com/2/files/upload', {
-            method: 'POST',
-            headers: {
-              'Authorization': 'Bearer ' + token,
-              'Dropbox-API-Arg': encodeDropboxArg({
-                path: DROPBOX_PATH,
-                mode: 'overwrite',
-                autorename: false,
-                mute: true
-              }),
-              'Content-Type': 'application/octet-stream'
-            },
-            body: bodyStr
-          });
+        // Pull-before-push merge so multi-device entries are preserved
+        let remoteData = null;
+        try {
+          remoteData = await downloadRemoteJson(token);
+        } catch (dlErr) {
+          if (String(dlErr.message).includes('401') && dbxCreds.refreshToken) {
+            token = await getActiveBearerToken(true);
+            remoteData = await downloadRemoteJson(token);
+          }
         }
 
-        if (!response.ok) throw new Error('HTTP ' + response.status);
+        if (remoteData && Array.isArray(remoteData.groups)) {
+          appState = mergeFarmStates(appState, remoteData, true);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+          renderApp();
+        }
+
+        await uploadRemoteJson(token, appState);
         lastSyncTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         setDropboxIndicator('live', 'Dropbox Live');
         if (showNotification) showToast(customMsg);
       } catch (err) {
-        console.error('Dropbox upload failed:', err);
+        console.error('Dropbox sync failed:', err);
         setDropboxIndicator('error', 'Sync Offline');
         if (showNotification) showToast('Saved locally (Dropbox offline)', true);
       } finally {
@@ -553,7 +563,7 @@
 
     async function pullFromDropbox(notify = false) {
       if (!hasDropboxAuth()) {
-        if (notify) showToast('Enter Dropbox credentials first', true);
+        if (notify) showToast('Configure Dropbox credentials first', true);
         return;
       }
       if (isSyncBusy) return;
@@ -562,51 +572,40 @@
 
       try {
         let token = await getActiveBearerToken(false);
-        let res = await fetch('https://content.dropboxapi.com/2/files/download', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + token,
-            'Dropbox-API-Arg': encodeDropboxArg({ path: DROPBOX_PATH })
+        let remoteData = null;
+        try {
+          remoteData = await downloadRemoteJson(token);
+        } catch (dlErr) {
+          if (String(dlErr.message).includes('401') && dbxCreds.refreshToken) {
+            token = await getActiveBearerToken(true);
+            remoteData = await downloadRemoteJson(token);
+          } else {
+            throw dlErr;
           }
-        });
-
-        if (res.status === 401 && dbxCreds.refreshToken) {
-          token = await getActiveBearerToken(true);
-          res = await fetch('https://content.dropboxapi.com/2/files/download', {
-            method: 'POST',
-            headers: {
-              'Authorization': 'Bearer ' + token,
-              'Dropbox-API-Arg': encodeDropboxArg({ path: DROPBOX_PATH })
-            }
-          });
         }
 
-        if (res.status === 409) {
-          // Initialize /data/mortality.json on Dropbox if not created yet
-          isSyncBusy = false;
-          await saveAndSync(notify, 'Created /data/mortality.json on Dropbox');
-          return;
-        }
-
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const remoteData = await res.json();
         if (remoteData && Array.isArray(remoteData.groups)) {
-          const needsPushBack = mergeRemoteState(remoteData);
+          appState = hasCachedLocalState
+            ? mergeFarmStates(appState, remoteData, false)
+            : { pin: '1234', deletedLogIds: [], ...remoteData };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+          hasCachedLocalState = true;
           lastSyncTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
           setDropboxIndicator('live', 'Dropbox Live');
           ensureValidSelections();
           renderApp();
-          isSyncBusy = false;
-          if (needsPushBack) {
-            await saveAndSync(false);
-          }
-          if (notify) showToast('Loaded latest /data/mortality.json');
+          if (notify) showToast('Synced latest /data/mortality.json');
+        } else if (remoteData === null) {
+          // Initialize /data/mortality.json on Dropbox if not present yet
+          await uploadRemoteJson(token, appState);
+          lastSyncTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          setDropboxIndicator('live', 'Dropbox Live');
+          if (notify) showToast('Created /data/mortality.json on Dropbox');
         }
       } catch (err) {
-        console.warn('Dropbox pull skipped/failed:', err);
-        setDropboxIndicator(hasDropboxAuth() ? 'live' : 'ready', hasDropboxAuth() ? 'Dropbox Live' : 'Dropbox Ready');
-        if (notify) showToast('Could not pull /data/mortality.json (will create on save)', true);
+        console.warn('Dropbox pull failed:', err);
+        setDropboxIndicator('error', 'Sync Offline');
+        if (notify) showToast('Dropbox pull failed (check token/network)', true);
       } finally {
         isSyncBusy = false;
       }
@@ -635,18 +634,16 @@
       }
     }
 
+    // Auto-lock whenever the Farm Manager closes/hides the browser tab or app page
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        if (role === 'admin' || adminUnlocked) {
-          adminUnlocked = false;
-          role = 'user';
-          renderApp();
-        }
-      } else if (hasDropboxAuth()) {
+      if (document.hidden && (role === 'admin' || adminUnlocked)) {
+        adminUnlocked = false;
+        role = 'user';
+        renderApp();
+      } else if (!document.hidden && hasDropboxAuth()) {
         pullFromDropbox(false);
       }
     });
-
     window.addEventListener('pagehide', () => {
       adminUnlocked = false;
       role = 'user';
@@ -779,6 +776,7 @@
     }
 
     function switchTab(tab) {
+      // Leaving Admin via bottom nav immediately auto-locks Admin
       if (role === 'admin' || adminUnlocked) {
         adminUnlocked = false;
         role = 'user';
@@ -844,7 +842,7 @@
     }
 
     // =========================================================================
-    // 8. VIEW 1: JOTFORM-STYLE DAILY INPUT CARD (MATCHING SCREENSHOT)
+    // 8. VIEW 1: JOTFORM-STYLE DAILY INPUT CARD (USER)
     // =========================================================================
     function renderDailyInputView() {
       const group = getGroupById(selectedGroupId) || appState.groups[0];
@@ -1010,13 +1008,25 @@
     }
 
     function adjustCounter(field, delta) {
-      if (field === 'dead') formDead = Math.max(0, Number(formDead || 0) + delta);
-      if (field === 'cull') formCull = Math.max(0, Number(formCull || 0) + delta);
+      if (field === 'dead') {
+        const next = Math.max(0, Number(formDead || 0) + delta);
+        formDead = next === 0 ? '' : next;
+      }
+      if (field === 'cull') {
+        const next = Math.max(0, Number(formCull || 0) + delta);
+        formCull = next === 0 ? '' : next;
+      }
       renderApp();
     }
 
     function setCounter(field, val) {
-      const num = Math.max(0, parseInt(val || '0', 10) || 0);
+      if (val === '') {
+        if (field === 'dead') formDead = '';
+        if (field === 'cull') formCull = '';
+        renderApp();
+        return;
+      }
+      const num = Math.max(0, parseInt(val, 10) || 0);
       if (field === 'dead') formDead = num;
       if (field === 'cull') formCull = num;
       renderApp();
@@ -1031,17 +1041,18 @@
       const cull = Math.max(0, parseInt(formCull || '0', 10));
 
       const newLog = {
-        id: 'log-' + Date.now(),
+        id: 'log-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
         groupId: selectedGroupId,
         houseId: selectedHouseId,
         dateTime: formDateTime,
         dead,
-        cull
+        cull,
+        updatedAt: new Date().toISOString()
       };
 
       appState.logs.unshift(newLog);
-      formDead = 0;
-      formCull = 0;
+      formDead = '';
+      formCull = '';
       formDateTime = getLocalDateTimeNow();
       renderApp();
       await saveAndSync(true, 'Mortality logged & synced to /data/mortality.json');
@@ -1145,6 +1156,7 @@
       renderApp();
     }
 
+    // Always requires PIN before opening Amend dialog
     function promptAmendLog(logId) {
       requestPinVerification(
         'PIN Required to Amend',
@@ -1175,12 +1187,13 @@
       log.dateTime = document.getElementById('amend-datetime').value || log.dateTime;
       log.dead = Math.max(0, parseInt(document.getElementById('amend-dead').value || '0', 10));
       log.cull = Math.max(0, parseInt(document.getElementById('amend-cull').value || '0', 10));
-      log.amendedAt = new Date().toISOString();
+      log.updatedAt = new Date().toISOString();
       closeAmendModal();
       renderApp();
       await saveAndSync(true, 'Record amended & synced to Dropbox');
     }
 
+    // Always requires PIN before deleting a log
     function promptDeleteLog(logId) {
       requestPinVerification(
         'PIN Required to Delete',
@@ -1221,7 +1234,17 @@
         const gPct = gIntake > 0 ? ((gMort / gIntake) * 100).toFixed(2) : '0.00';
         const gAge = calculateBirdAge(group.cycleStartDate, getTodayDateStr());
         const gProgress = Math.min(100, Math.round((gAge / (group.batchDays || 60)) * 100));
-        return { group, houses, gIntake, gDead, gCull, gMort, gPct, gAge, gProgress };
+        return {
+          group,
+          houses,
+          gIntake,
+          gDead,
+          gCull,
+          gMort,
+          gPct,
+          gAge,
+          gProgress
+        };
       });
 
       const visibleGroupSummaries = summaryFilterGroupId === 'all'
@@ -1257,6 +1280,7 @@
             <span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-[#9f1239] text-[11px] font-extrabold">${appState.groups.length} Groups</span>
           </div>
 
+          <!-- Group Filter Pills -->
           <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
             <button type="button" onclick="setSummaryGroupFilter('all')" class="px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition ${
               summaryFilterGroupId === 'all' ? 'bg-[#9f1239] text-white shadow-xs' : 'bg-white text-slate-600 border border-rose-100 hover:border-rose-300'
@@ -1268,6 +1292,7 @@
             `).join('')}
           </div>
 
+          <!-- Group-Level Summary Cards -->
           <div class="space-y-2.5">
             ${groupSummaries.map(({ group, houses, gIntake, gDead, gCull, gMort, gPct, gAge, gProgress }) => {
               const isSelected = summaryFilterGroupId === group.id;
@@ -1294,6 +1319,7 @@
                     </div>
                   </div>
 
+                  <!-- Dead / Cull / Batch Progress Breakdown -->
                   <div class="grid grid-cols-3 gap-2 text-[11px]">
                     <div class="bg-rose-50/70 px-2.5 py-1.5 rounded-xl flex items-center justify-between">
                       <span class="text-slate-500 font-medium">Dead:</span>
@@ -1309,6 +1335,7 @@
                     </div>
                   </div>
 
+                  <!-- Visual Batch Progress Bar -->
                   <div class="space-y-1">
                     <div class="w-full h-2 bg-rose-100 rounded-full overflow-hidden">
                       <div class="h-full bg-gradient-to-r from-[#9f1239] to-[#e11d48] rounded-full transition-all" style="width: ${gProgress}%"></div>
@@ -1320,7 +1347,7 @@
           </div>
         </div>
 
-        <!-- Per-Group & Per-House 60-Day Breakdown Cards -->
+        <!-- Per-Group & Per-House Breakdown Cards -->
         <div class="pt-1 space-y-4">
           <div class="flex items-center justify-between px-1">
             <h3 class="font-extrabold text-sm text-slate-900">House Breakdown (${summaryFilterGroupId === 'all' ? 'All Groups' : (getGroupById(summaryFilterGroupId)?.name || '')})</h3>
@@ -1388,6 +1415,7 @@
     // =========================================================================
     function renderAdminView() {
       return `
+        <!-- Admin Session Status Banner with Immediate Lock Button -->
         <div class="bg-rose-950 text-white px-4 py-2.5 rounded-2xl flex items-center justify-between text-xs shadow-sm">
           <div class="flex items-center gap-2">
             <i data-lucide="shield-alert" class="w-4 h-4 text-amber-400"></i>
@@ -1398,6 +1426,7 @@
           </button>
         </div>
 
+        <!-- Admin Sub-Navigation Pill Bar -->
         <div class="bg-white p-1.5 rounded-full border border-rose-100 shadow-2xs grid grid-cols-4 gap-1">
           ${[
             { id: 'reports', label: 'Reports' },
@@ -1420,6 +1449,7 @@
       `;
     }
 
+    // ADMIN TAB A: AUTOMATED SUMMARY REPORT GENERATOR
     function renderAdminReportsTab() {
       const grp = getGroupById(reportGroupId) || appState.groups[0];
       const houses = getHousesByGroup(grp?.id);
@@ -1624,46 +1654,337 @@
       document.body.removeChild(ta);
     }
 
-    // ADMIN TAB B: HOUSES
+    // ADMIN TAB B: HOUSES (MANUAL OR EXTRACT FROM /data/miv_doc_database.json)
+    function normalizeDocRecords(rawJson) {
+      let rawList = [];
+      if (Array.isArray(rawJson)) {
+        rawList = rawJson;
+      } else if (rawJson && typeof rawJson === 'object') {
+        if (Array.isArray(rawJson.records)) rawList = rawJson.records;
+        else if (Array.isArray(rawJson.intakes)) rawList = rawJson.intakes;
+        else if (Array.isArray(rawJson.docs)) rawList = rawJson.docs;
+        else if (Array.isArray(rawJson.entries)) rawList = rawJson.entries;
+        else if (Array.isArray(rawJson.data)) rawList = rawJson.data;
+        else if (Array.isArray(rawJson.items)) rawList = rawJson.items;
+        else if (Array.isArray(rawJson.houses)) rawList = rawJson.houses;
+        else {
+          Object.values(rawJson).forEach(val => {
+            if (Array.isArray(val)) rawList.push(...val);
+          });
+        }
+      }
+
+      return rawList
+        .filter(item => item && typeof item === 'object')
+        .map(item => {
+          const farmGroup = String(
+            item.farmGroup ?? item.farm_group ?? item.group ?? item.groupName ?? item.farm ?? item['Farm Group'] ?? ''
+          ).trim().toUpperCase();
+
+          const houseNumber = String(
+            item.houseNumber ?? item.house_number ?? item.houseNo ?? item.house_no ?? item.house ?? item.number ?? item['House Number'] ?? item['House No'] ?? ''
+          ).trim().toUpperCase();
+
+          const rawDate = String(
+            item.dateIntake ?? item.date_intake ?? item.intakeDate ?? item.intake_date ?? item.date ?? item['Date Intake'] ?? item['Intake Date'] ?? ''
+          ).trim();
+          const dateIntake = rawDate ? rawDate.slice(0, 10) : '';
+
+          const rawLive =
+            item.totalNetLive ??
+            item.total_net_live ??
+            item.netLive ??
+            item.net_live ??
+            item.birdsIntake ??
+            item.birds_intake ??
+            item['Total Net Live'] ??
+            item['Net Live'] ??
+            item['Birds Intake'] ??
+            0;
+          const totalNetLive = Math.max(0, parseInt(String(rawLive).replace(/[^\d]/g, '') || '0', 10));
+
+          const supplier = String(
+            item.supplier ?? item.supplierName ?? item.breeder ?? item.hatchery ?? item['Supplier'] ?? ''
+          ).trim();
+
+          return { farmGroup, houseNumber, dateIntake, totalNetLive, supplier };
+        })
+        .filter(r => r.farmGroup || r.houseNumber || r.dateIntake);
+    }
+
+    function syncExtractSelections(preferredGroup = '', preferredHouse = '', preferredDate = '') {
+      const groups = [...new Set(docDatabaseRecords.map(r => r.farmGroup).filter(Boolean))];
+      if (preferredGroup && groups.includes(preferredGroup)) {
+        extractFarmGroup = preferredGroup;
+      } else if (!groups.includes(extractFarmGroup)) {
+        const activeGrpName = (getGroupById(selectedGroupId)?.name || '').toUpperCase();
+        extractFarmGroup = groups.includes(activeGrpName) ? activeGrpName : (groups[0] || '');
+      }
+
+      const byGroup = docDatabaseRecords.filter(r => r.farmGroup === extractFarmGroup);
+      const houses = [...new Set(byGroup.map(r => r.houseNumber).filter(Boolean))];
+      if (preferredHouse && houses.includes(preferredHouse)) {
+        extractHouseNumber = preferredHouse;
+      } else if (!houses.includes(extractHouseNumber)) {
+        extractHouseNumber = houses[0] || '';
+      }
+
+      const byHouse = byGroup.filter(r => r.houseNumber === extractHouseNumber);
+      const dates = [...new Set(byHouse.map(r => r.dateIntake).filter(Boolean))].sort((a, b) => b.localeCompare(a));
+      if (preferredDate && dates.includes(preferredDate)) {
+        extractDateIntake = preferredDate;
+      } else if (!dates.includes(extractDateIntake)) {
+        extractDateIntake = dates[0] || '';
+      }
+
+      const matched = byHouse.filter(r => r.dateIntake === extractDateIntake);
+      if (matched.length > 0) {
+        const sumNetLive = matched.reduce((acc, m) => acc + Number(m.totalNetLive || 0), 0);
+        const suppliers = [...new Set(matched.map(m => m.supplier).filter(Boolean))];
+        extractBirdsIntake = sumNetLive > 0 ? String(sumNetLive) : '';
+        extractSupplier = suppliers.join(' / ');
+      } else {
+        extractBirdsIntake = '';
+        extractSupplier = '';
+      }
+    }
+
+    async function fetchDocDatabaseFromDropbox(notify = false) {
+      if (!hasDropboxAuth()) {
+        docDatabaseStatus = 'error';
+        docDatabaseError = 'Connect Dropbox API v2 first to read /data/miv_doc_database.json';
+        renderApp();
+        if (notify) showToast(docDatabaseError, true);
+        return;
+      }
+
+      docDatabaseStatus = 'loading';
+      docDatabaseError = '';
+      renderApp();
+
+      try {
+        let token = await getActiveBearerToken(false);
+        let res = await fetch('https://content.dropboxapi.com/2/files/download', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Dropbox-API-Arg': encodeDropboxArg({ path: DOC_DATABASE_PATH })
+          }
+        });
+
+        if (res.status === 401 && dbxCreds.refreshToken) {
+          token = await getActiveBearerToken(true);
+          res = await fetch('https://content.dropboxapi.com/2/files/download', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + token,
+              'Dropbox-API-Arg': encodeDropboxArg({ path: DOC_DATABASE_PATH })
+            }
+          });
+        }
+
+        if (!res.ok) {
+          throw new Error(res.status === 409 ? '/data/miv_doc_database.json not found on Dropbox' : 'HTTP ' + res.status);
+        }
+
+        const rawJson = await res.json();
+        docDatabaseRecords = normalizeDocRecords(rawJson);
+        docDatabaseStatus = 'loaded';
+        syncExtractSelections();
+        renderApp();
+        if (notify) showToast(`Loaded ${docDatabaseRecords.length} DOC records from /data/miv_doc_database.json`);
+      } catch (err) {
+        console.warn('DOC database fetch error:', err);
+        docDatabaseStatus = 'error';
+        docDatabaseError = err.message || 'Failed to read /data/miv_doc_database.json';
+        renderApp();
+        if (notify) showToast(docDatabaseError, true);
+      }
+    }
+
+    function setHouseEntryMode(mode) {
+      houseEntryMode = mode;
+      if (mode === 'extract' && docDatabaseRecords.length === 0 && docDatabaseStatus !== 'loading') {
+        fetchDocDatabaseFromDropbox(false);
+        return;
+      }
+      if (mode === 'extract' && docDatabaseRecords.length > 0) {
+        syncExtractSelections();
+      }
+      renderApp();
+    }
+
+    function handleExtractGroupChange(val) {
+      syncExtractSelections(val, '', '');
+      renderApp();
+    }
+
+    function handleExtractHouseChange(val) {
+      syncExtractSelections(extractFarmGroup, val, '');
+      renderApp();
+    }
+
+    function handleExtractDateChange(val) {
+      syncExtractSelections(extractFarmGroup, extractHouseNumber, val);
+      renderApp();
+    }
+
     function renderAdminHousesTab() {
       const editH = editingHouseId ? getHouseById(editingHouseId) : null;
+      const isExtract = !editH && houseEntryMode === 'extract';
+
+      const docGroups = [...new Set(docDatabaseRecords.map(r => r.farmGroup).filter(Boolean))];
+      const docHouses = [...new Set(
+        docDatabaseRecords.filter(r => r.farmGroup === extractFarmGroup).map(r => r.houseNumber).filter(Boolean)
+      )];
+      const docDates = [...new Set(
+        docDatabaseRecords
+          .filter(r => r.farmGroup === extractFarmGroup && r.houseNumber === extractHouseNumber)
+          .map(r => r.dateIntake)
+          .filter(Boolean)
+      )].sort((a, b) => b.localeCompare(a));
 
       return `
         <div class="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-3.5">
-          <h3 class="font-extrabold text-base text-slate-900">${editH ? 'Update House Details' : 'Add New House'}</h3>
-
-          <div class="grid grid-cols-2 gap-2.5">
-            <div>
-              <label class="block text-[11px] font-bold text-slate-600 mb-1">Farm Group</label>
-              <select id="house-form-group" class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold bg-rose-50/30">
-                ${appState.groups.map(g => `<option value="${g.id}" ${(editH ? editH.groupId : selectedGroupId) === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
-              </select>
-            </div>
-            <div>
-              <label class="block text-[11px] font-bold text-slate-600 mb-1">House Number</label>
-              <input id="house-form-number" type="text" placeholder="e.g. H7" value="${editH ? editH.number : ''}"
-                class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
-            </div>
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="font-extrabold text-base text-slate-900">${editH ? 'Update House Details' : 'Add New House'}</h3>
+            ${!editH ? `
+              <span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-[#9f1239] text-[10.5px] font-extrabold">
+                ${isExtract ? 'DOC Extract' : 'Manual Entry'}
+              </span>
+            ` : ''}
           </div>
 
-          <div class="grid grid-cols-2 gap-2.5">
-            <div>
-              <label class="block text-[11px] font-bold text-slate-600 mb-1">Birds Intake</label>
-              <input id="house-form-intake" type="number" min="0" placeholder="30000" value="${editH ? editH.birdsIntake : ''}"
-                class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
+          ${!editH ? `
+            <!-- Add House Entry Mode Switcher: Manual vs Extract from /data/miv_doc_database.json -->
+            <div class="bg-rose-50/80 p-1 rounded-2xl border border-rose-100 grid grid-cols-2 gap-1">
+              <button type="button" onclick="setHouseEntryMode('manual')"
+                class="py-2 px-2.5 rounded-xl text-[11px] font-extrabold flex items-center justify-center gap-1.5 transition ${
+                  !isExtract
+                    ? 'bg-[#9f1239] text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-rose-100/70'
+                }">
+                <i data-lucide="pencil-line" class="w-3.5 h-3.5"></i>
+                <span>Manual Input</span>
+              </button>
+              <button type="button" onclick="setHouseEntryMode('extract')"
+                class="py-2 px-2.5 rounded-xl text-[11px] font-extrabold flex items-center justify-center gap-1.5 transition ${
+                  isExtract
+                    ? 'bg-[#9f1239] text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-rose-100/70'
+                }">
+                <i data-lucide="database" class="w-3.5 h-3.5"></i>
+                <span>Extract DOC JSON</span>
+              </button>
             </div>
-            <div>
-              <label class="block text-[11px] font-bold text-slate-600 mb-1">Supplier</label>
-              <input id="house-form-supplier" type="text" placeholder="e.g. CP Breeder" value="${editH ? editH.supplier : ''}"
-                class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
-            </div>
-          </div>
+          ` : ''}
 
-          <div>
-            <label class="block text-[11px] font-bold text-slate-600 mb-1">Date Intake (Day 0, Next Day = Day 1)</label>
-            <input id="house-form-date" type="date" value="${editH ? editH.intakeDate : getTodayDateStr()}"
-              class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
-          </div>
+          ${isExtract ? `
+            <!-- Extract from /data/miv_doc_database.json Panel -->
+            <div class="p-3 rounded-2xl bg-rose-50/60 border border-rose-200/80 space-y-2.5">
+              <div class="flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                  <span class="block text-[10.5px] font-extrabold uppercase tracking-wider text-[#9f1239]">Source: /data/miv_doc_database.json</span>
+                  <span class="block text-[10px] text-slate-500 truncate">
+                    ${docDatabaseStatus === 'loading'
+                      ? 'Fetching DOC intake records from Dropbox...'
+                      : docDatabaseStatus === 'loaded'
+                        ? `${docDatabaseRecords.length} DOC records available`
+                        : 'Select Farm Group, House & Date Intake'}
+                  </span>
+                </div>
+                <button type="button" onclick="fetchDocDatabaseFromDropbox(true)"
+                  class="px-2.5 py-1.5 rounded-xl bg-white border border-rose-200 text-[#9f1239] hover:bg-rose-100 text-[11px] font-extrabold flex items-center gap-1 shrink-0 transition active:scale-95">
+                  <i data-lucide="refresh-cw" class="w-3 h-3 ${docDatabaseStatus === 'loading' ? 'animate-spin' : ''}"></i>
+                  <span>Refresh</span>
+                </button>
+              </div>
+
+              ${docDatabaseError ? `
+                <div class="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] font-semibold text-amber-900">
+                  ${docDatabaseError}
+                </div>
+              ` : ''}
+
+              ${docDatabaseRecords.length === 0 && docDatabaseStatus !== 'loading' ? `
+                <div class="text-center py-3 text-xs text-slate-500">
+                  No records loaded yet. Tap <strong>Refresh</strong> to pull <code class="text-[#9f1239] font-bold">/data/miv_doc_database.json</code>.
+                </div>
+              ` : `
+                <div class="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Farm Group (DOC)</label>
+                    <select id="extract-form-group" onchange="handleExtractGroupChange(this.value)"
+                      class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold bg-white text-slate-900">
+                      ${docGroups.map(g => `<option value="${g}" ${g === extractFarmGroup ? 'selected' : ''}>${g}</option>`).join('')}
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-600 mb-1">House Number (DOC)</label>
+                    <select id="extract-form-number" onchange="handleExtractHouseChange(this.value)"
+                      class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold bg-white text-slate-900">
+                      ${docHouses.map(h => `<option value="${h}" ${h === extractHouseNumber ? 'selected' : ''}>${h}</option>`).join('')}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-600 mb-1">Date Intake (DOC — Day 0, Next Day = Day 1)</label>
+                  <select id="extract-form-date" onchange="handleExtractDateChange(this.value)"
+                    class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold bg-white text-slate-900">
+                    ${docDates.map(d => `<option value="${d}" ${d === extractDateIntake ? 'selected' : ''}>${d}</option>`).join('')}
+                  </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5 pt-0.5">
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Birds Intake (Total Net Live)</label>
+                    <input id="house-form-intake" type="number" min="0" placeholder="0" value="${extractBirdsIntake}"
+                      class="w-full px-3 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50/60 text-xs font-extrabold text-emerald-950" />
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Supplier (Extracted)</label>
+                    <input id="house-form-supplier" type="text" placeholder="Supplier" value="${extractSupplier}"
+                      class="w-full px-3 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50/60 text-xs font-extrabold text-emerald-950" />
+                  </div>
+                </div>
+              `}
+            </div>
+          ` : `
+            <!-- Manual House Entry Form -->
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Farm Group</label>
+                <select id="house-form-group" class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold bg-rose-50/30">
+                  ${appState.groups.map(g => `<option value="${g.id}" ${(editH ? editH.groupId : selectedGroupId) === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">House Number</label>
+                <input id="house-form-number" type="text" placeholder="e.g. H7" value="${editH ? editH.number : ''}"
+                  class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Birds Intake</label>
+                <input id="house-form-intake" type="number" min="0" placeholder="30000" value="${editH ? editH.birdsIntake : ''}"
+                  class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Supplier</label>
+                <input id="house-form-supplier" type="text" placeholder="e.g. CP Breeder" value="${editH ? editH.supplier : ''}"
+                  class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Date Intake (Day 0, Next Day = Day 1)</label>
+              <input id="house-form-date" type="date" value="${editH ? editH.intakeDate : ''}"
+                class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
+            </div>
+          `}
 
           <div class="flex gap-2">
             ${editH ? `<button type="button" onclick="cancelEditHouse()" class="px-4 py-3 rounded-2xl border border-slate-200 text-xs font-bold text-slate-600">Cancel</button>` : ''}
@@ -1675,7 +1996,11 @@
 
         <div class="space-y-2.5">
           <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 px-1">Configured Houses (${appState.houses.length})</h4>
-          ${appState.houses.map(h => {
+          ${appState.houses.length === 0 ? `
+            <div class="bg-white rounded-2xl p-6 text-center border border-rose-100 text-xs text-slate-500">
+              No houses configured yet. Add houses manually or extract from <code class="text-[#9f1239] font-bold">/data/miv_doc_database.json</code> above.
+            </div>
+          ` : appState.houses.map(h => {
             const g = getGroupById(h.groupId);
             const age = calculateBirdAge(h.intakeDate, getTodayDateStr());
             return `
@@ -1701,6 +2026,7 @@
 
     function startEditHouse(hid) {
       editingHouseId = hid;
+      houseEntryMode = 'manual';
       renderApp();
     }
 
@@ -1710,11 +2036,42 @@
     }
 
     async function saveHouseForm() {
-      const groupId = document.getElementById('house-form-group').value;
-      const number = document.getElementById('house-form-number').value.trim().toUpperCase();
-      const birdsIntake = Math.max(0, parseInt(document.getElementById('house-form-intake').value || '0', 10));
-      const supplier = document.getElementById('house-form-supplier').value.trim() || 'Standard Supplier';
-      const intakeDate = document.getElementById('house-form-date').value || getTodayDateStr();
+      const isExtract = !editingHouseId && houseEntryMode === 'extract';
+      let groupId = '';
+      let number = '';
+      let intakeDate = '';
+
+      if (isExtract) {
+        const docGrpName = (document.getElementById('extract-form-group')?.value || extractFarmGroup || '').trim().toUpperCase();
+        number = (document.getElementById('extract-form-number')?.value || extractHouseNumber || '').trim().toUpperCase();
+        intakeDate = (document.getElementById('extract-form-date')?.value || extractDateIntake || getTodayDateStr()).trim();
+
+        if (!docGrpName || !number) {
+          showToast('Select a Farm Group and House Number from DOC JSON first', true);
+          return;
+        }
+
+        let matchedGroup = appState.groups.find(g => g.name.trim().toUpperCase() === docGrpName);
+        if (!matchedGroup) {
+          matchedGroup = {
+            id: 'grp-' + Date.now(),
+            name: docGrpName,
+            code: 'MIV',
+            cycleNumber: 76,
+            batchDays: 60,
+            cycleStartDate: intakeDate || getTodayDateStr()
+          };
+          appState.groups.push(matchedGroup);
+        }
+        groupId = matchedGroup.id;
+      } else {
+        groupId = document.getElementById('house-form-group').value;
+        number = document.getElementById('house-form-number').value.trim().toUpperCase();
+        intakeDate = document.getElementById('house-form-date').value || getTodayDateStr();
+      }
+
+      const birdsIntake = Math.max(0, parseInt(document.getElementById('house-form-intake')?.value || '0', 10));
+      const supplier = (document.getElementById('house-form-supplier')?.value || '').trim() || 'Standard Supplier';
 
       if (!number) {
         showToast('Enter a House Number (e.g. H1)', true);
@@ -1726,18 +2083,25 @@
         if (h) Object.assign(h, { groupId, number, birdsIntake, supplier, intakeDate });
         editingHouseId = null;
       } else {
-        appState.houses.push({
-          id: 'h-' + Date.now(),
-          groupId,
-          number,
-          birdsIntake,
-          supplier,
-          intakeDate
-        });
+        const existingHouse = appState.houses.find(
+          h => h.groupId === groupId && h.number.trim().toUpperCase() === number
+        );
+        if (existingHouse) {
+          Object.assign(existingHouse, { birdsIntake, supplier, intakeDate });
+        } else {
+          appState.houses.push({
+            id: 'h-' + Date.now(),
+            groupId,
+            number,
+            birdsIntake,
+            supplier,
+            intakeDate
+          });
+        }
       }
 
       renderApp();
-      await saveAndSync(true, 'House saved & synced to Dropbox');
+      await saveAndSync(true, isExtract ? 'DOC house intake extracted & synced to Dropbox' : 'House saved & synced to Dropbox');
     }
 
     async function deleteHouse(hid) {
@@ -1746,7 +2110,7 @@
       await saveAndSync(true, 'House removed & synced');
     }
 
-    // ADMIN TAB C: GROUPS
+    // ADMIN TAB C: UPDATE / ADD FARM GROUPS
     function renderAdminGroupsTab() {
       const editG = editingGroupId ? getGroupById(editingGroupId) : null;
 
@@ -1848,6 +2212,7 @@
       const targetGroup = getGroupById(adminCycleGroupId) || appState.groups[0];
 
       return `
+        <!-- Card 1: Per-Group Cycle Number & Dates -->
         <div class="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="font-extrabold text-base text-slate-900">Cycle Settings by Group</h3>
@@ -1899,6 +2264,7 @@
           </div>
         </div>
 
+        <!-- Card 2: Security PIN Settings (Admin & My Logs Amend/Delete) -->
         <div class="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-3.5">
           <div class="flex items-center gap-2">
             <div class="w-8 h-8 rounded-xl bg-rose-100 text-[#9f1239] flex items-center justify-center">
@@ -1979,17 +2345,26 @@
     }
 
     // =========================================================================
-    // 12. DROPBOX MODAL CONTROLS & 1-TAP DEVICE LINK
+    // 12. DROPBOX MODAL & 1-TAP TEAM SYNC LINK CONTROLS
     // =========================================================================
     function openDropboxModal() {
       document.getElementById('dropbox-refresh-input').value = dbxCreds.refreshToken || '';
       document.getElementById('dropbox-appkey-input').value = dbxCreds.appKey || '';
       document.getElementById('dropbox-appsecret-input').value = dbxCreds.appSecret || '';
       document.getElementById('dropbox-token-input').value = dbxCreds.accessToken || '';
+
       const info = document.getElementById('dropbox-last-sync');
-      info.textContent = hasDropboxAuth()
-        ? (lastSyncTime ? `Connected • Last synced at ${lastSyncTime}` : 'Credentials configured • Ready to sync /data/mortality.json')
-        : 'Local cache active. Enter token to enable cloud sync.';
+      if (dbxCreds.refreshToken && dbxCreds.appKey) {
+        info.textContent = lastSyncTime
+          ? `Permanent Auto-Sync Active • Last synced at ${lastSyncTime}`
+          : 'Permanent Refresh Token active • Auto-syncing /data/mortality.json';
+      } else if (dbxCreds.accessToken) {
+        info.textContent = lastSyncTime
+          ? `Connected • Last synced at ${lastSyncTime}`
+          : 'Access token configured • Ready to sync /data/mortality.json';
+      } else {
+        info.textContent = 'Local cache active. Enter token to enable multi-device cloud sync.';
+      }
       document.getElementById('dropbox-modal').classList.remove('hidden');
     }
 
@@ -2004,15 +2379,15 @@
       dbxCreds.accessToken = document.getElementById('dropbox-token-input').value.trim();
       dbxCreds.expiresAt = 0;
 
-      if (hasDropboxAuth()) {
-        localStorage.setItem(CREDS_KEY, JSON.stringify(dbxCreds));
-        if (dbxCreds.accessToken) localStorage.setItem(TOKEN_KEY, dbxCreds.accessToken);
+      localStorage.setItem(CREDS_KEY, JSON.stringify(dbxCreds));
+      if (dbxCreds.accessToken) {
+        localStorage.setItem(TOKEN_KEY, dbxCreds.accessToken);
       } else {
-        localStorage.removeItem(CREDS_KEY);
         localStorage.removeItem(TOKEN_KEY);
       }
+
       closeDropboxModal();
-      await pullFromDropbox(true);
+      await saveAndSync(true, hasDropboxAuth() ? 'Dropbox connected & /data/mortality.json synced' : 'Dropbox credentials cleared');
     }
 
     function copyNewDeviceSyncLink() {
@@ -2025,35 +2400,48 @@
         showToast('Enter Refresh Token or Access Token first', true);
         return;
       }
-      const payload = {};
-      if (rk) payload.rk = rk;
-      if (ak) payload.ak = ak;
-      if (as) payload.as = as;
-      if (!rk && at) payload.at = at;
 
-      const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))))
+      const payload = btoa(unescape(encodeURIComponent(JSON.stringify({ rk, ak, as, at }))))
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=+$/, '');
-      const url = `${window.location.origin}${window.location.pathname}#dbx=${b64}`;
-      copyToClipboardSafe(url);
-      showToast('1-Tap New Device Sync Link copied!');
+
+      const baseUrl = window.location.origin + window.location.pathname;
+      const shareUrl = `${baseUrl}#dbx=${payload}`;
+      copyToClipboardSafe(shareUrl);
+      showToast('1-Tap Device Sync Link copied! Open on any phone to auto-sync.');
     }
 
     // =========================================================================
-    // 13. BOOTSTRAP & BACKGROUND MULTI-DEVICE SYNC POLLING
+    // 13. BOOTSTRAP & BACKGROUND MULTI-DEVICE POLLING
     // =========================================================================
+    function resetSampleCacheIfPresent() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        const hasDefaultSampleLogs = Array.isArray(parsed?.logs) && parsed.logs.some(l => /^log-[1-6]$/.test(l.id));
+        const hasDefaultSampleHouses = Array.isArray(parsed?.houses) && parsed.houses.some(h => /^h-[abcd]\d+$/.test(h.id));
+        if (hasDefaultSampleLogs || hasDefaultSampleHouses) {
+          localStorage.removeItem(STORAGE_KEY);
+          hasCachedLocalState = false;
+          appState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+        }
+      } catch (e) {
+        console.warn('Cache cleanup skipped:', e);
+      }
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
+      resetSampleCacheIfPresent();
       renderApp();
       if (hasDropboxAuth()) {
         setDropboxIndicator('live', 'Dropbox Live');
         pullFromDropbox(false);
+        setInterval(() => {
+          if (!document.hidden) pullFromDropbox(false);
+        }, 30000);
       }
-      setInterval(() => {
-        if (!document.hidden && hasDropboxAuth()) {
-          pullFromDropbox(false);
-        }
-      }, 25000);
     });
   </script>
 </body>
