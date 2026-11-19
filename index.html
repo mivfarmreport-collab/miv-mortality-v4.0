@@ -251,14 +251,14 @@
     // =========================================================================
     const STORAGE_KEY = 'miv_mortality_state_v2';
     const TOKEN_KEY = 'miv_dropbox_token_v2';
-    const CREDS_KEY = 'miv_dropbox_creds_v2';
+    const CREDS_KEY = 'miv_dropbox_creds_v3';
     const DROPBOX_PATH = '/data/mortality.json';
     const DOC_DATABASE_PATH = '/data/miv_doc_database.json';
 
     const DEFAULT_DBX_APP_KEY = 'q7q5k2471319191';
     const DEFAULT_DBX_APP_SECRET = '947351748219231';
     const DEFAULT_DBX_REFRESH_TOKEN = '8374920184729104827194827194827194827194827194827194827194827194';
-    const DEFAULT_DBX_ACCESS_TOKEN = '';
+    const DEFAULT_DBX_ACCESS_TOKEN = 'sl.B.1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
 
     const DEFAULT_STATE = {
       pin: '1234',
@@ -339,7 +339,11 @@
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed && typeof parsed === 'object') {
-            Object.assign(creds, parsed);
+            if (parsed.appKey) creds.appKey = parsed.appKey;
+            if (parsed.appSecret) creds.appSecret = parsed.appSecret;
+            if (parsed.refreshToken) creds.refreshToken = parsed.refreshToken;
+            if (parsed.accessToken) creds.accessToken = parsed.accessToken;
+            if (parsed.expiresAt) creds.expiresAt = parsed.expiresAt;
           }
         }
       } catch (e) {
@@ -400,21 +404,29 @@
           bodyParams.append('client_secret', dbxCreds.appSecret.trim());
         }
 
-        const tokenRes = await fetch('https://api.dropboxapi.com/oauth2/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: bodyParams.toString()
-        });
+        try {
+          const tokenRes = await fetch('https://api.dropboxapi.com/oauth2/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: bodyParams.toString()
+          });
 
-        if (!tokenRes.ok) {
-          throw new Error('Dropbox token refresh failed (' + tokenRes.status + ')');
+          if (!tokenRes.ok) {
+            throw new Error('Dropbox token refresh failed (' + tokenRes.status + ')');
+          }
+
+          const tokenData = await tokenRes.json();
+          dbxCreds.accessToken = tokenData.access_token;
+          dbxCreds.expiresAt = Date.now() + (Number(tokenData.expires_in || 14400) * 1000);
+          localStorage.setItem(CREDS_KEY, JSON.stringify(dbxCreds));
+          return dbxCreds.accessToken;
+        } catch (refreshErr) {
+          // Fallback to configured Bearer Access Token if refresh token exchange fails
+          if (dbxCreds.accessToken && dbxCreds.accessToken.trim()) {
+            return dbxCreds.accessToken.trim();
+          }
+          throw refreshErr;
         }
-
-        const tokenData = await tokenRes.json();
-        dbxCreds.accessToken = tokenData.access_token;
-        dbxCreds.expiresAt = Date.now() + (Number(tokenData.expires_in || 14400) * 1000);
-        localStorage.setItem(CREDS_KEY, JSON.stringify(dbxCreds));
-        return dbxCreds.accessToken;
       }
 
       return (dbxCreds.accessToken || '').trim();
