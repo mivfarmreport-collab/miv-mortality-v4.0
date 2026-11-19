@@ -1734,48 +1734,124 @@
         else if (Array.isArray(rawJson.items)) rawList = rawJson.items;
         else if (Array.isArray(rawJson.houses)) rawList = rawJson.houses;
         else {
-          Object.values(rawJson).forEach(val => {
-            if (Array.isArray(val)) rawList.push(...val);
+          Object.entries(rawJson).forEach(([key, val]) => {
+            if (Array.isArray(val)) {
+              val.forEach(item => {
+                if (item && typeof item === 'object' && !item.farmGroup && !item.group && !item.farm) {
+                  rawList.push({ farmGroup: key, ...item });
+                } else {
+                  rawList.push(item);
+                }
+              });
+            }
           });
         }
       }
 
-      return rawList
-        .filter(item => item && typeof item === 'object')
-        .map(item => {
-          const farmGroup = String(
-            item.farmGroup ?? item.farm_group ?? item.group ?? item.groupName ?? item.farm ?? item['Farm Group'] ?? ''
-          ).trim().toUpperCase();
+      // Helper to read object properties case-insensitively / ignoring spaces & underscores
+      const getField = (obj, candidates) => {
+        if (!obj || typeof obj !== 'object') return undefined;
+        for (const c of candidates) {
+          if (obj[c] !== undefined && obj[c] !== null && obj[c] !== '') return obj[c];
+        }
+        const normalizedMap = {};
+        Object.keys(obj).forEach(k => {
+          normalizedMap[k.toLowerCase().replace(/[^a-z0-9]/g, '')] = obj[k];
+        });
+        for (const c of candidates) {
+          const normKey = c.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (normalizedMap[normKey] !== undefined && normalizedMap[normKey] !== null && normalizedMap[normKey] !== '') {
+            return normalizedMap[normKey];
+          }
+        }
+        return undefined;
+      };
 
-          const houseNumber = String(
-            item.houseNumber ?? item.house_number ?? item.houseNo ?? item.house_no ?? item.house ?? item.number ?? item['House Number'] ?? item['House No'] ?? ''
-          ).trim().toUpperCase();
+      const extracted = [];
 
-          const rawDate = String(
-            item.dateIntake ?? item.date_intake ?? item.intakeDate ?? item.intake_date ?? item.date ?? item['Date Intake'] ?? item['Intake Date'] ?? ''
-          ).trim();
-          const dateIntake = rawDate ? rawDate.slice(0, 10) : '';
+      rawList.forEach(item => {
+        if (!item || typeof item !== 'object') return;
 
-          const rawLive =
-            item.totalNetLive ??
-            item.total_net_live ??
-            item.netLive ??
-            item.net_live ??
-            item.birdsIntake ??
-            item.birds_intake ??
-            item['Total Net Live'] ??
-            item['Net Live'] ??
-            item['Birds Intake'] ??
-            0;
-          const totalNetLive = Math.max(0, parseInt(String(rawLive).replace(/[^\d]/g, '') || '0', 10));
+        const farmGroup = String(
+          getField(item, ['farmGroup', 'farm_group', 'group', 'groupName', 'farm', 'farmName', 'locationGroup']) ?? ''
+        ).trim().toUpperCase();
 
-          const supplier = String(
-            item.supplier ?? item.supplierName ?? item.breeder ?? item.hatchery ?? item['Supplier'] ?? ''
-          ).trim();
+        const rawDate = String(
+          getField(item, ['dateIntake', 'date_intake', 'intakeDate', 'intake_date', 'deliveryDate', 'docDate', 'date']) ?? ''
+        ).trim();
+        const dateIntake = rawDate ? rawDate.slice(0, 10) : '';
 
-          return { farmGroup, houseNumber, dateIntake, totalNetLive, supplier };
-        })
-        .filter(r => r.farmGroup || r.houseNumber || r.dateIntake);
+        const supplier = String(
+          getField(item, ['supplier', 'supplierName', 'breeder', 'hatchery', 'source', 'vendor']) ?? ''
+        ).trim();
+
+        // Support nested house arrays inside a DOC batch record (e.g. item.houses / item.allocations / item.details)
+        const nestedHouses = Array.isArray(item.houses)
+          ? item.houses
+          : Array.isArray(item.allocations)
+            ? item.allocations
+            : Array.isArray(item.houseDetails)
+              ? item.houseDetails
+              : null;
+
+        if (nestedHouses && nestedHouses.length > 0) {
+          nestedHouses.forEach(sub => {
+            if (!sub || typeof sub !== 'object') return;
+            const subGroup = String(
+              getField(sub, ['farmGroup', 'group', 'farm']) ?? farmGroup
+            ).trim().toUpperCase();
+            const subHouse = String(
+              getField(sub, ['houseNumber', 'house_number', 'houseNo', 'house_no', 'house', 'number', 'no']) ?? ''
+            ).trim().toUpperCase();
+            const subDate = String(
+              getField(sub, ['dateIntake', 'intakeDate', 'date']) ?? dateIntake
+            ).trim().slice(0, 10);
+            const subSupplier = String(
+              getField(sub, ['supplier', 'breeder', 'hatchery']) ?? supplier
+            ).trim();
+            const subLiveRaw = getField(sub, [
+              'totalNetLive', 'total_net_live', 'netLive', 'net_live',
+              'netLiveBirds', 'birdsIntake', 'birds_intake', 'qty', 'quantity', 'totalBirds'
+            ]) ?? 0;
+            const totalNetLive = Math.max(0, parseInt(String(subLiveRaw).replace(/[^\d]/g, '') || '0', 10));
+
+            if (subGroup || subHouse || subDate) {
+              extracted.push({
+                farmGroup: subGroup,
+                houseNumber: subHouse,
+                dateIntake: subDate,
+                totalNetLive,
+                supplier: subSupplier
+              });
+            }
+          });
+          return;
+        }
+
+        const houseNumber = String(
+          getField(item, ['houseNumber', 'house_number', 'houseNo', 'house_no', 'house', 'number', 'coop']) ?? ''
+        ).trim().toUpperCase();
+
+        const rawLive = getField(item, [
+          'totalNetLive',
+          'total_net_live',
+          'netLive',
+          'net_live',
+          'netLiveBirds',
+          'net_live_birds',
+          'birdsIntake',
+          'birds_intake',
+          'totalBirds',
+          'liveChicks'
+        ]) ?? 0;
+        const totalNetLive = Math.max(0, parseInt(String(rawLive).replace(/[^\d]/g, '') || '0', 10));
+
+        if (farmGroup || houseNumber || dateIntake) {
+          extracted.push({ farmGroup, houseNumber, dateIntake, totalNetLive, supplier });
+        }
+      });
+
+      return extracted;
     }
 
     function syncExtractSelections(preferredGroup = '', preferredHouse = '', preferredDate = '') {
