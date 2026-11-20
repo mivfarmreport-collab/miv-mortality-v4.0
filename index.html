@@ -90,26 +90,33 @@
     </main>
 
     <!-- Bottom Android Navigation Bar -->
-    <nav id="bottom-nav" class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[440px] bg-white/95 backdrop-blur-md border-t border-rose-100 px-3 py-2 flex items-center justify-around z-30 shadow-[0_-4px_20px_rgba(136,19,55,0.06)]">
-      <button type="button" onclick="switchTab('input')" id="nav-input" class="flex flex-col items-center gap-1 py-1 px-4 rounded-2xl transition">
-        <div id="nav-input-icon-wrap" class="px-4 py-1 rounded-full bg-rose-100 text-[#9f1239]">
+    <nav id="bottom-nav" class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[440px] bg-white/95 backdrop-blur-md border-t border-rose-100 px-2 py-2 flex items-center justify-around z-30 shadow-[0_-4px_20px_rgba(136,19,55,0.06)]">
+      <button type="button" onclick="switchTab('input')" id="nav-input" class="flex flex-col items-center gap-1 py-1 px-2.5 rounded-2xl transition">
+        <div id="nav-input-icon-wrap" class="px-3.5 py-1 rounded-full bg-rose-100 text-[#9f1239]">
           <i data-lucide="clipboard-edit" class="w-5 h-5"></i>
         </div>
         <span id="nav-input-label" class="text-[11px] font-extrabold text-[#9f1239]">Daily Input</span>
       </button>
 
-      <button type="button" onclick="switchTab('logs')" id="nav-logs" class="flex flex-col items-center gap-1 py-1 px-4 rounded-2xl transition">
-        <div id="nav-logs-icon-wrap" class="px-4 py-1 rounded-full text-slate-500">
+      <button type="button" onclick="switchTab('logs')" id="nav-logs" class="flex flex-col items-center gap-1 py-1 px-2.5 rounded-2xl transition">
+        <div id="nav-logs-icon-wrap" class="px-3.5 py-1 rounded-full text-slate-500">
           <i data-lucide="history" class="w-5 h-5"></i>
         </div>
         <span id="nav-logs-label" class="text-[11px] font-semibold text-slate-500">My Logs</span>
       </button>
 
-      <button type="button" onclick="switchTab('summary')" id="nav-summary" class="flex flex-col items-center gap-1 py-1 px-4 rounded-2xl transition">
-        <div id="nav-summary-icon-wrap" class="px-4 py-1 rounded-full text-slate-500">
+      <button type="button" onclick="switchTab('summary')" id="nav-summary" class="flex flex-col items-center gap-1 py-1 px-2.5 rounded-2xl transition">
+        <div id="nav-summary-icon-wrap" class="px-3.5 py-1 rounded-full text-slate-500">
           <i data-lucide="pie-chart" class="w-5 h-5"></i>
         </div>
         <span id="nav-summary-label" class="text-[11px] font-semibold text-slate-500">Cycle Summary</span>
+      </button>
+
+      <button type="button" onclick="switchTab('reports')" id="nav-reports" class="flex flex-col items-center gap-1 py-1 px-2.5 rounded-2xl transition">
+        <div id="nav-reports-icon-wrap" class="px-3.5 py-1 rounded-full text-slate-500">
+          <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+        </div>
+        <span id="nav-reports-label" class="text-[11px] font-semibold text-slate-500">Reports</span>
       </button>
     </nav>
   </div>
@@ -253,7 +260,6 @@
     const TOKEN_KEY = 'miv_dropbox_token_v2';
     const CREDS_KEY = 'miv_dropbox_creds_v3';
     const DROPBOX_PATH = '/data/mortality.json';
-    const DOC_DATABASE_PATH = '/data/miv_doc_database.json';
 
     const DEFAULT_DBX_APP_KEY = 'q7q5k2471319191';
     const DEFAULT_DBX_APP_SECRET = '947351748219231';
@@ -283,7 +289,7 @@
     // UI Navigation & Security Session State
     let role = 'user'; // 'user' | 'admin'
     let adminUnlocked = false; // Auto-locks whenever leaving Admin or closing/hiding page
-    let activeUserTab = 'input'; // 'input' | 'logs' | 'summary'
+    let activeUserTab = 'input'; // 'input' | 'logs' | 'summary' | 'reports'
     let activeAdminTab = 'reports'; // 'reports' | 'houses' | 'groups' | 'cycle'
 
     // Form Selection State (Cleaned Inputs)
@@ -300,23 +306,35 @@
     let summaryFilterGroupId = 'all';
     let summaryFilterHouseId = 'all';
 
-    // Admin Sub-view State
+    // Admin Sub-view & Persistent Draft Input State (Protected from Background Auto-Sync)
     let reportGroupId = appState.groups[0]?.id || '';
     let reportHouseId = getHousesByGroup(reportGroupId)[0]?.id || '';
     let adminCycleGroupId = appState.groups[0]?.id || '';
     let editingGroupId = null;
     let editingHouseId = null;
 
-    // DOC Database (/data/miv_doc_database.json) Extraction State
-    let houseEntryMode = 'manual'; // 'manual' | 'extract'
-    let docDatabaseRecords = [];
-    let docDatabaseStatus = 'idle'; // 'idle' | 'loading' | 'loaded' | 'error'
-    let docDatabaseError = '';
-    let extractFarmGroup = '';
-    let extractHouseNumber = '';
-    let extractDateIntake = '';
-    let extractBirdsIntake = '';
-    let extractSupplier = '';
+    let adminHouseDraft = {
+      groupId: appState.groups[0]?.id || '',
+      number: '',
+      birdsIntake: '',
+      supplier: '',
+      intakeDate: ''
+    };
+    let adminGroupDraft = {
+      name: '',
+      code: ''
+    };
+    let adminCycleDraft = {
+      groupId: appState.groups[0]?.id || '',
+      cycleNumber: '',
+      batchDays: '',
+      cycleStartDate: ''
+    };
+    let adminPinDraft = {
+      current: '',
+      next: '',
+      confirm: ''
+    };
 
     // Modal Callback State
     let pendingPinCallback = null;
@@ -606,7 +624,12 @@
           lastSyncTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
           setDropboxIndicator('live', 'Dropbox Live');
           ensureValidSelections();
-          renderApp();
+          // Preserve active Admin typing/selections on background pulls; only force re-render on manual pull or non-admin screens
+          if (notify || !(role === 'admin' && adminUnlocked)) {
+            renderApp();
+          } else {
+            updateHeaderBadges();
+          }
           if (notify) showToast('Synced latest /data/mortality.json');
         } else if (remoteData === null) {
           // Initialize /data/mortality.json on Dropbox if not present yet
@@ -654,7 +677,9 @@
         role = 'user';
         renderApp();
       } else if (!document.hidden && hasDropboxAuth()) {
-        pullFromDropbox(false);
+        if (!(role === 'admin' && adminUnlocked)) {
+          pullFromDropbox(false);
+        }
       }
     });
     window.addEventListener('pagehide', () => {
@@ -833,13 +858,12 @@
         adminBtn.className = 'flex items-center justify-center gap-1.5 py-2 px-3 rounded-full text-[12.5px] font-bold transition-all bg-white text-[#881337] shadow';
         userBtn.className = 'flex items-center justify-center gap-1.5 py-2 px-3 rounded-full text-[12.5px] font-bold transition-all text-rose-100 hover:text-white';
       }
-
-      ['input', 'logs', 'summary'].forEach(t => {
+      ['input', 'logs', 'summary', 'reports'].forEach(t => {
         const isActive = role === 'user' && activeUserTab === t;
         const wrap = document.getElementById(`nav-${t}-icon-wrap`);
         const lbl = document.getElementById(`nav-${t}-label`);
-        wrap.className = isActive ? 'px-4 py-1 rounded-full bg-rose-100 text-[#9f1239]' : 'px-4 py-1 rounded-full text-slate-500';
-        lbl.className = isActive ? 'text-[11px] font-extrabold text-[#9f1239]' : 'text-[11px] font-semibold text-slate-500';
+        if (wrap) wrap.className = isActive ? 'px-3.5 py-1 rounded-full bg-rose-100 text-[#9f1239]' : 'px-3.5 py-1 rounded-full text-slate-500';
+        if (lbl) lbl.className = isActive ? 'text-[11px] font-extrabold text-[#9f1239]' : 'text-[11px] font-semibold text-slate-500';
       });
 
       const main = document.getElementById('main-content');
@@ -848,7 +872,8 @@
       } else {
         if (activeUserTab === 'input') main.innerHTML = renderDailyInputView();
         else if (activeUserTab === 'logs') main.innerHTML = renderMyLogsView();
-        else main.innerHTML = renderCycleSummaryView();
+        else if (activeUserTab === 'summary') main.innerHTML = renderCycleSummaryView();
+        else main.innerHTML = renderAdminReportsTab();
       }
 
       lucide.createIcons();
@@ -1732,417 +1757,69 @@
       document.body.removeChild(ta);
     }
 
-    // ADMIN TAB B: HOUSES (MANUAL OR EXTRACT FROM /data/miv_doc_database.json)
-    function normalizeDocRecords(rawJson) {
-      let rawList = [];
-      if (Array.isArray(rawJson)) {
-        rawList = rawJson;
-      } else if (rawJson && typeof rawJson === 'object') {
-        if (Array.isArray(rawJson.records)) rawList = rawJson.records;
-        else if (Array.isArray(rawJson.intakes)) rawList = rawJson.intakes;
-        else if (Array.isArray(rawJson.docs)) rawList = rawJson.docs;
-        else if (Array.isArray(rawJson.entries)) rawList = rawJson.entries;
-        else if (Array.isArray(rawJson.data)) rawList = rawJson.data;
-        else if (Array.isArray(rawJson.items)) rawList = rawJson.items;
-        else if (Array.isArray(rawJson.houses)) rawList = rawJson.houses;
-        else {
-          Object.entries(rawJson).forEach(([key, val]) => {
-            if (Array.isArray(val)) {
-              val.forEach(item => {
-                if (item && typeof item === 'object' && !item.farmGroup && !item.group && !item.farm) {
-                  rawList.push({ farmGroup: key, ...item });
-                } else {
-                  rawList.push(item);
-                }
-              });
-            }
-          });
-        }
-      }
-
-      // Helper to read object properties case-insensitively / ignoring spaces & underscores
-      const getField = (obj, candidates) => {
-        if (!obj || typeof obj !== 'object') return undefined;
-        for (const c of candidates) {
-          if (obj[c] !== undefined && obj[c] !== null && obj[c] !== '') return obj[c];
-        }
-        const normalizedMap = {};
-        Object.keys(obj).forEach(k => {
-          normalizedMap[k.toLowerCase().replace(/[^a-z0-9]/g, '')] = obj[k];
-        });
-        for (const c of candidates) {
-          const normKey = c.toLowerCase().replace(/[^a-z0-9]/g, '');
-          if (normalizedMap[normKey] !== undefined && normalizedMap[normKey] !== null && normalizedMap[normKey] !== '') {
-            return normalizedMap[normKey];
-          }
-        }
-        return undefined;
-      };
-
-      const extracted = [];
-
-      rawList.forEach(item => {
-        if (!item || typeof item !== 'object') return;
-
-        const farmGroup = String(
-          getField(item, ['farmGroup', 'farm_group', 'group', 'groupName', 'group_name', 'farm', 'farmName', 'farm_name', 'locationGroup', 'site']) ?? ''
-        ).trim().toUpperCase();
-
-        const rawDate = String(
-          getField(item, ['dateIntake', 'date_intake', 'intakeDate', 'intake_date', 'deliveryDate', 'delivery_date', 'docDate', 'doc_date', 'arrivalDate', 'date']) ?? ''
-        ).trim();
-        const dateIntake = rawDate ? rawDate.slice(0, 10) : '';
-
-        const supplier = String(
-          getField(item, ['supplier', 'supplierName', 'supplier_name', 'breeder', 'hatchery', 'source', 'vendor']) ?? ''
-        ).trim();
-
-        // Support nested house arrays inside a DOC batch record (e.g. item.houses / item.allocations / item.details)
-        const nestedHouses = Array.isArray(item.houses)
-          ? item.houses
-          : Array.isArray(item.allocations)
-            ? item.allocations
-            : Array.isArray(item.houseDetails)
-              ? item.houseDetails
-              : null;
-
-        if (nestedHouses && nestedHouses.length > 0) {
-          nestedHouses.forEach(sub => {
-            if (!sub || typeof sub !== 'object') return;
-            const subGroup = String(
-              getField(sub, ['farmGroup', 'farm_group', 'group', 'farm']) ?? farmGroup
-            ).trim().toUpperCase();
-            const subHouse = String(
-              getField(sub, ['houseNumber', 'house_number', 'houseNo', 'house_no', 'house', 'number', 'no', 'coop']) ?? ''
-            ).trim().toUpperCase();
-            const subDate = String(
-              getField(sub, ['dateIntake', 'date_intake', 'intakeDate', 'intake_date', 'date']) ?? dateIntake
-            ).trim().slice(0, 10);
-            const subSupplier = String(
-              getField(sub, ['supplier', 'supplier_name', 'breeder', 'hatchery']) ?? supplier
-            ).trim();
-            const subLiveRaw = getField(sub, [
-              'totalNetLive', 'total_net_live', 'netLive', 'net_live',
-              'netLiveBirds', 'net_live_birds', 'birdsIntake', 'birds_intake', 'qty', 'quantity', 'totalBirds', 'total_birds'
-            ]) ?? 0;
-            const totalNetLive = Math.max(0, parseInt(String(subLiveRaw).replace(/[^\d]/g, '') || '0', 10));
-
-            if (subGroup || subHouse || subDate) {
-              extracted.push({
-                farmGroup: subGroup,
-                houseNumber: subHouse,
-                dateIntake: subDate,
-                totalNetLive,
-                supplier: subSupplier
-              });
-            }
-          });
-          return;
-        }
-
-        const houseNumber = String(
-          getField(item, ['houseNumber', 'house_number', 'houseNo', 'house_no', 'house', 'number', 'no', 'coop']) ?? ''
-        ).trim().toUpperCase();
-
-        const rawLive = getField(item, [
-          'totalNetLive',
-          'total_net_live',
-          'netLive',
-          'net_live',
-          'netLiveBirds',
-          'net_live_birds',
-          'birdsIntake',
-          'birds_intake',
-          'totalBirds',
-          'total_birds',
-          'liveChicks',
-          'live_chicks',
-          'qty',
-          'quantity'
-        ]) ?? 0;
-        const totalNetLive = Math.max(0, parseInt(String(rawLive).replace(/[^\d]/g, '') || '0', 10));
-
-        if (farmGroup || houseNumber || dateIntake) {
-          extracted.push({ farmGroup, houseNumber, dateIntake, totalNetLive, supplier });
-        }
-      });
-
-      return extracted;
-    }
-
-    function syncExtractSelections(preferredGroup = '', preferredHouse = '', preferredDate = '') {
-      const groups = [...new Set(docDatabaseRecords.map(r => r.farmGroup).filter(Boolean))];
-      if (preferredGroup && groups.includes(preferredGroup)) {
-        extractFarmGroup = preferredGroup;
-      } else if (!groups.includes(extractFarmGroup)) {
-        const activeGrpName = (getGroupById(selectedGroupId)?.name || '').toUpperCase();
-        extractFarmGroup = groups.includes(activeGrpName) ? activeGrpName : (groups[0] || '');
-      }
-
-      const byGroup = docDatabaseRecords.filter(r => r.farmGroup === extractFarmGroup);
-      const houses = [...new Set(byGroup.map(r => r.houseNumber).filter(Boolean))];
-      if (preferredHouse && houses.includes(preferredHouse)) {
-        extractHouseNumber = preferredHouse;
-      } else if (!houses.includes(extractHouseNumber)) {
-        extractHouseNumber = houses[0] || '';
-      }
-
-      const byHouse = byGroup.filter(r => r.houseNumber === extractHouseNumber);
-      const dates = [...new Set(byHouse.map(r => r.dateIntake).filter(Boolean))].sort((a, b) => b.localeCompare(a));
-      if (preferredDate && dates.includes(preferredDate)) {
-        extractDateIntake = preferredDate;
-      } else if (!dates.includes(extractDateIntake)) {
-        extractDateIntake = dates[0] || '';
-      }
-
-      const matched = byHouse.filter(r => r.dateIntake === extractDateIntake);
-      if (matched.length > 0) {
-        const sumNetLive = matched.reduce((acc, m) => acc + Number(m.totalNetLive || 0), 0);
-        const suppliers = [...new Set(matched.map(m => m.supplier).filter(Boolean))];
-        extractBirdsIntake = sumNetLive > 0 ? String(sumNetLive) : '';
-        extractSupplier = suppliers.join(' / ');
-      } else {
-        extractBirdsIntake = '';
-        extractSupplier = '';
-      }
-    }
-
-    async function fetchDocDatabaseFromDropbox(notify = false) {
-      if (!hasDropboxAuth()) {
-        docDatabaseStatus = 'error';
-        docDatabaseError = 'Connect Dropbox API v2 first to read /data/miv_doc_database.json';
-        renderApp();
-        if (notify) showToast(docDatabaseError, true);
-        return;
-      }
-
-      docDatabaseStatus = 'loading';
-      docDatabaseError = '';
-      renderApp();
-
-      try {
-        let token = await getActiveBearerToken(false);
-        let res = await fetch('https://content.dropboxapi.com/2/files/download', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + token,
-            'Dropbox-API-Arg': encodeDropboxArg({ path: DOC_DATABASE_PATH })
-          }
-        });
-
-        if (res.status === 401 && dbxCreds.refreshToken) {
-          token = await getActiveBearerToken(true);
-          res = await fetch('https://content.dropboxapi.com/2/files/download', {
-            method: 'POST',
-            headers: {
-              'Authorization': 'Bearer ' + token,
-              'Dropbox-API-Arg': encodeDropboxArg({ path: DOC_DATABASE_PATH })
-            }
-          });
-        }
-
-        if (!res.ok) {
-          throw new Error(res.status === 409 ? '/data/miv_doc_database.json not found on Dropbox' : 'HTTP ' + res.status);
-        }
-
-        const rawJson = await res.json();
-        docDatabaseRecords = normalizeDocRecords(rawJson);
-        docDatabaseStatus = 'loaded';
-        syncExtractSelections();
-        renderApp();
-        if (notify) showToast(`Loaded ${docDatabaseRecords.length} DOC records from /data/miv_doc_database.json`);
-      } catch (err) {
-        console.warn('DOC database fetch error:', err);
-        docDatabaseStatus = 'error';
-        docDatabaseError = err.message || 'Failed to read /data/miv_doc_database.json';
-        renderApp();
-        if (notify) showToast(docDatabaseError, true);
-      }
-    }
-
-    function setHouseEntryMode(mode) {
-      houseEntryMode = mode;
-      if (mode === 'extract' && docDatabaseRecords.length === 0 && docDatabaseStatus !== 'loading') {
-        fetchDocDatabaseFromDropbox(false);
-        return;
-      }
-      if (mode === 'extract' && docDatabaseRecords.length > 0) {
-        syncExtractSelections();
-      }
-      renderApp();
-    }
-
-    function handleExtractGroupChange(val) {
-      syncExtractSelections(val, '', '');
-      renderApp();
-    }
-
-    function handleExtractHouseChange(val) {
-      syncExtractSelections(extractFarmGroup, val, '');
-      renderApp();
-    }
-
-    function handleExtractDateChange(val) {
-      syncExtractSelections(extractFarmGroup, extractHouseNumber, val);
-      renderApp();
+    // ADMIN TAB B: MANUAL HOUSE ENTRY & CONFIGURATION
+    function syncAdminHouseDraftFromDOM() {
+      const grpEl = document.getElementById('house-form-group');
+      const numEl = document.getElementById('house-form-number');
+      const intEl = document.getElementById('house-form-intake');
+      const supEl = document.getElementById('house-form-supplier');
+      const datEl = document.getElementById('house-form-date');
+      if (grpEl) adminHouseDraft.groupId = grpEl.value;
+      if (numEl) adminHouseDraft.number = numEl.value;
+      if (intEl) adminHouseDraft.birdsIntake = intEl.value;
+      if (supEl) adminHouseDraft.supplier = supEl.value;
+      if (datEl) adminHouseDraft.intakeDate = datEl.value;
     }
 
     function renderAdminHousesTab() {
       const editH = editingHouseId ? getHouseById(editingHouseId) : null;
-      const isExtract = !editH && houseEntryMode === 'extract';
-
-      const docGroups = [...new Set(docDatabaseRecords.map(r => r.farmGroup).filter(Boolean))];
-      const docHouses = [...new Set(
-        docDatabaseRecords.filter(r => r.farmGroup === extractFarmGroup).map(r => r.houseNumber).filter(Boolean)
-      )];
-      const docDates = [...new Set(
-        docDatabaseRecords
-          .filter(r => r.farmGroup === extractFarmGroup && r.houseNumber === extractHouseNumber)
-          .map(r => r.dateIntake)
-          .filter(Boolean)
-      )].sort((a, b) => b.localeCompare(a));
+      const currentGroupVal = editH ? editH.groupId : (adminHouseDraft.groupId || selectedGroupId || appState.groups[0]?.id || '');
+      const currentNumVal = editH ? editH.number : adminHouseDraft.number;
+      const currentIntakeVal = editH ? editH.birdsIntake : adminHouseDraft.birdsIntake;
+      const currentSupplierVal = editH ? editH.supplier : adminHouseDraft.supplier;
+      const currentDateVal = editH ? editH.intakeDate : adminHouseDraft.intakeDate;
 
       return `
         <div class="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-3.5">
           <div class="flex items-center justify-between gap-2">
             <h3 class="font-extrabold text-base text-slate-900">${editH ? 'Update House Details' : 'Add New House'}</h3>
-            ${!editH ? `
-              <span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-[#9f1239] text-[10.5px] font-extrabold">
-                ${isExtract ? 'DOC Extract' : 'Manual Entry'}
-              </span>
-            ` : ''}
+            <span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-[#9f1239] text-[10.5px] font-extrabold">
+              ${editH ? 'Edit Mode' : 'House Setup'}
+            </span>
           </div>
 
-          ${!editH ? `
-            <!-- Add House Entry Mode Switcher: Manual vs Extract from /data/miv_doc_database.json -->
-            <div class="bg-rose-50/80 p-1 rounded-2xl border border-rose-100 grid grid-cols-2 gap-1">
-              <button type="button" onclick="setHouseEntryMode('manual')"
-                class="py-2 px-2.5 rounded-xl text-[11px] font-extrabold flex items-center justify-center gap-1.5 transition ${
-                  !isExtract
-                    ? 'bg-[#9f1239] text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-rose-100/70'
-                }">
-                <i data-lucide="pencil-line" class="w-3.5 h-3.5"></i>
-                <span>Manual Input</span>
-              </button>
-              <button type="button" onclick="setHouseEntryMode('extract')"
-                class="py-2 px-2.5 rounded-xl text-[11px] font-extrabold flex items-center justify-center gap-1.5 transition ${
-                  isExtract
-                    ? 'bg-[#9f1239] text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-rose-100/70'
-                }">
-                <i data-lucide="database" class="w-3.5 h-3.5"></i>
-                <span>Extract DOC JSON</span>
-              </button>
-            </div>
-          ` : ''}
-
-          ${isExtract ? `
-            <!-- Extract from /data/miv_doc_database.json Panel -->
-            <div class="p-3 rounded-2xl bg-rose-50/60 border border-rose-200/80 space-y-2.5">
-              <div class="flex items-center justify-between gap-2">
-                <div class="min-w-0">
-                  <span class="block text-[10.5px] font-extrabold uppercase tracking-wider text-[#9f1239]">Source: /data/miv_doc_database.json</span>
-                  <span class="block text-[10px] text-slate-500 truncate">
-                    ${docDatabaseStatus === 'loading'
-                      ? 'Fetching DOC intake records from Dropbox...'
-                      : docDatabaseStatus === 'loaded'
-                        ? `${docDatabaseRecords.length} DOC records available`
-                        : 'Select Farm Group, House & Date Intake'}
-                  </span>
-                </div>
-                <button type="button" onclick="fetchDocDatabaseFromDropbox(true)"
-                  class="px-2.5 py-1.5 rounded-xl bg-white border border-rose-200 text-[#9f1239] hover:bg-rose-100 text-[11px] font-extrabold flex items-center gap-1 shrink-0 transition active:scale-95">
-                  <i data-lucide="refresh-cw" class="w-3 h-3 ${docDatabaseStatus === 'loading' ? 'animate-spin' : ''}"></i>
-                  <span>Refresh</span>
-                </button>
-              </div>
-
-              ${docDatabaseError ? `
-                <div class="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] font-semibold text-amber-900">
-                  ${docDatabaseError}
-                </div>
-              ` : ''}
-
-              ${docDatabaseRecords.length === 0 && docDatabaseStatus !== 'loading' ? `
-                <div class="text-center py-3 text-xs text-slate-500">
-                  No records loaded yet. Tap <strong>Refresh</strong> to pull <code class="text-[#9f1239] font-bold">/data/miv_doc_database.json</code>.
-                </div>
-              ` : `
-                <div class="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Farm Group (DOC)</label>
-                    <select id="extract-form-group" onchange="handleExtractGroupChange(this.value)"
-                      class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold bg-white text-slate-900">
-                      ${docGroups.map(g => `<option value="${g}" ${g === extractFarmGroup ? 'selected' : ''}>${g}</option>`).join('')}
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-[11px] font-bold text-slate-600 mb-1">House Number (DOC)</label>
-                    <select id="extract-form-number" onchange="handleExtractHouseChange(this.value)"
-                      class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold bg-white text-slate-900">
-                      ${docHouses.map(h => `<option value="${h}" ${h === extractHouseNumber ? 'selected' : ''}>${h}</option>`).join('')}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label class="block text-[11px] font-bold text-slate-600 mb-1">Date Intake (DOC — Day 0, Next Day = Day 1)</label>
-                  <select id="extract-form-date" onchange="handleExtractDateChange(this.value)"
-                    class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold bg-white text-slate-900">
-                    ${docDates.map(d => `<option value="${d}" ${d === extractDateIntake ? 'selected' : ''}>${d}</option>`).join('')}
-                  </select>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2.5 pt-0.5">
-                  <div>
-                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Birds Intake (Total Net Live)</label>
-                    <input id="house-form-intake" type="number" min="0" placeholder="0" value="${extractBirdsIntake}"
-                      class="w-full px-3 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50/60 text-xs font-extrabold text-emerald-950" />
-                  </div>
-                  <div>
-                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Supplier (Extracted)</label>
-                    <input id="house-form-supplier" type="text" placeholder="Supplier" value="${extractSupplier}"
-                      class="w-full px-3 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50/60 text-xs font-extrabold text-emerald-950" />
-                  </div>
-                </div>
-              `}
-            </div>
-          ` : `
-            <!-- Manual House Entry Form -->
-            <div class="grid grid-cols-2 gap-2.5">
-              <div>
-                <label class="block text-[11px] font-bold text-slate-600 mb-1">Farm Group</label>
-                <select id="house-form-group" class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold bg-rose-50/30">
-                  ${appState.groups.map(g => `<option value="${g.id}" ${(editH ? editH.groupId : selectedGroupId) === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
-                </select>
-              </div>
-              <div>
-                <label class="block text-[11px] font-bold text-slate-600 mb-1">House Number</label>
-                <input id="house-form-number" type="text" placeholder="e.g. H7" value="${editH ? editH.number : ''}"
-                  class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2.5">
-              <div>
-                <label class="block text-[11px] font-bold text-slate-600 mb-1">Birds Intake</label>
-                <input id="house-form-intake" type="number" min="0" placeholder="30000" value="${editH ? editH.birdsIntake : ''}"
-                  class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
-              </div>
-              <div>
-                <label class="block text-[11px] font-bold text-slate-600 mb-1">Supplier</label>
-                <input id="house-form-supplier" type="text" placeholder="e.g. CP Breeder" value="${editH ? editH.supplier : ''}"
-                  class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
-              </div>
-            </div>
-
+          <div class="grid grid-cols-2 gap-2.5">
             <div>
-              <label class="block text-[11px] font-bold text-slate-600 mb-1">Date Intake (Day 0, Next Day = Day 1)</label>
-              <input id="house-form-date" type="date" value="${editH ? editH.intakeDate : ''}"
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Farm Group</label>
+              <select id="house-form-group" onchange="syncAdminHouseDraftFromDOM()" class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold bg-rose-50/30">
+                ${appState.groups.map(g => `<option value="${g.id}" ${currentGroupVal === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">House Number</label>
+              <input id="house-form-number" type="text" placeholder="e.g. H7" value="${currentNumVal}" oninput="syncAdminHouseDraftFromDOM()"
                 class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
             </div>
-          `}
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Birds Intake</label>
+              <input id="house-form-intake" type="number" min="0" placeholder="30000" value="${currentIntakeVal}" oninput="syncAdminHouseDraftFromDOM()"
+                class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Supplier</label>
+              <input id="house-form-supplier" type="text" placeholder="e.g. CP Breeder" value="${currentSupplierVal}" oninput="syncAdminHouseDraftFromDOM()"
+                class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Date Intake (Day 0, Next Day = Day 1)</label>
+            <input id="house-form-date" type="date" value="${currentDateVal}" oninput="syncAdminHouseDraftFromDOM()" onchange="syncAdminHouseDraftFromDOM()"
+              class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
+          </div>
 
           <div class="flex gap-2">
             ${editH ? `<button type="button" onclick="cancelEditHouse()" class="px-4 py-3 rounded-2xl border border-slate-200 text-xs font-bold text-slate-600">Cancel</button>` : ''}
@@ -2156,7 +1833,7 @@
           <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 px-1">Configured Houses (${appState.houses.length})</h4>
           ${appState.houses.length === 0 ? `
             <div class="bg-white rounded-2xl p-6 text-center border border-rose-100 text-xs text-slate-500">
-              No houses configured yet. Add houses manually or extract from <code class="text-[#9f1239] font-bold">/data/miv_doc_database.json</code> above.
+              No houses configured yet. Fill in the details above to add your first house.
             </div>
           ` : appState.houses.map(h => {
             const g = getGroupById(h.groupId);
@@ -2184,52 +1861,38 @@
 
     function startEditHouse(hid) {
       editingHouseId = hid;
-      houseEntryMode = 'manual';
+      const h = getHouseById(hid);
+      if (h) {
+        adminHouseDraft = {
+          groupId: h.groupId,
+          number: h.number,
+          birdsIntake: String(h.birdsIntake),
+          supplier: h.supplier,
+          intakeDate: h.intakeDate
+        };
+      }
       renderApp();
     }
 
     function cancelEditHouse() {
       editingHouseId = null;
+      adminHouseDraft = {
+        groupId: selectedGroupId || appState.groups[0]?.id || '',
+        number: '',
+        birdsIntake: '',
+        supplier: '',
+        intakeDate: ''
+      };
       renderApp();
     }
 
     async function saveHouseForm() {
-      const isExtract = !editingHouseId && houseEntryMode === 'extract';
-      let groupId = '';
-      let number = '';
-      let intakeDate = '';
-
-      if (isExtract) {
-        const docGrpName = (document.getElementById('extract-form-group')?.value || extractFarmGroup || '').trim().toUpperCase();
-        number = (document.getElementById('extract-form-number')?.value || extractHouseNumber || '').trim().toUpperCase();
-        intakeDate = (document.getElementById('extract-form-date')?.value || extractDateIntake || getTodayDateStr()).trim();
-
-        if (!docGrpName || !number) {
-          showToast('Select a Farm Group and House Number from DOC JSON first', true);
-          return;
-        }
-
-        let matchedGroup = appState.groups.find(g => g.name.trim().toUpperCase() === docGrpName);
-        if (!matchedGroup) {
-          matchedGroup = {
-            id: 'grp-' + Date.now(),
-            name: docGrpName,
-            code: 'MIV',
-            cycleNumber: 76,
-            batchDays: 60,
-            cycleStartDate: intakeDate || getTodayDateStr()
-          };
-          appState.groups.push(matchedGroup);
-        }
-        groupId = matchedGroup.id;
-      } else {
-        groupId = document.getElementById('house-form-group').value;
-        number = document.getElementById('house-form-number').value.trim().toUpperCase();
-        intakeDate = document.getElementById('house-form-date').value || getTodayDateStr();
-      }
-
-      const birdsIntake = Math.max(0, parseInt(document.getElementById('house-form-intake')?.value || '0', 10));
-      const supplier = (document.getElementById('house-form-supplier')?.value || '').trim() || 'Standard Supplier';
+      syncAdminHouseDraftFromDOM();
+      const groupId = adminHouseDraft.groupId || document.getElementById('house-form-group').value;
+      const number = (adminHouseDraft.number || '').trim().toUpperCase();
+      const intakeDate = adminHouseDraft.intakeDate || getTodayDateStr();
+      const birdsIntake = Math.max(0, parseInt(adminHouseDraft.birdsIntake || '0', 10));
+      const supplier = (adminHouseDraft.supplier || '').trim() || 'Standard Supplier';
 
       if (!number) {
         showToast('Enter a House Number (e.g. H1)', true);
@@ -2258,8 +1921,16 @@
         }
       }
 
+      adminHouseDraft = {
+        groupId,
+        number: '',
+        birdsIntake: '',
+        supplier: '',
+        intakeDate: ''
+      };
+
       renderApp();
-      await saveAndSync(true, isExtract ? 'DOC house intake extracted & synced to Dropbox' : 'House saved & synced to Dropbox');
+      await saveAndSync(true, 'House saved & synced to Dropbox');
     }
 
     async function deleteHouse(hid) {
@@ -2269,8 +1940,17 @@
     }
 
     // ADMIN TAB C: UPDATE / ADD FARM GROUPS
+    function syncAdminGroupDraftFromDOM() {
+      const nameEl = document.getElementById('group-form-name');
+      const codeEl = document.getElementById('group-form-code');
+      if (nameEl) adminGroupDraft.name = nameEl.value;
+      if (codeEl) adminGroupDraft.code = codeEl.value;
+    }
+
     function renderAdminGroupsTab() {
       const editG = editingGroupId ? getGroupById(editingGroupId) : null;
+      const currentNameVal = editG ? editG.name : adminGroupDraft.name;
+      const currentCodeVal = editG ? editG.code : adminGroupDraft.code;
 
       return `
         <div class="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-3.5">
@@ -2279,12 +1959,12 @@
           <div class="grid grid-cols-2 gap-2.5">
             <div>
               <label class="block text-[11px] font-bold text-slate-600 mb-1">Group Name</label>
-              <input id="group-form-name" type="text" placeholder="e.g. FARM E" value="${editG ? editG.name : ''}"
+              <input id="group-form-name" type="text" placeholder="e.g. FARM E" value="${currentNameVal}" oninput="syncAdminGroupDraftFromDOM()"
                 class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
             </div>
             <div>
               <label class="block text-[11px] font-bold text-slate-600 mb-1">Location / Tag Code</label>
-              <input id="group-form-code" type="text" placeholder="e.g. KP" value="${editG ? editG.code : ''}"
+              <input id="group-form-code" type="text" placeholder="e.g. KP" value="${currentCodeVal}" oninput="syncAdminGroupDraftFromDOM()"
                 class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
             </div>
           </div>
@@ -2323,17 +2003,23 @@
 
     function startEditGroup(gid) {
       editingGroupId = gid;
+      const g = getGroupById(gid);
+      if (g) {
+        adminGroupDraft = { name: g.name, code: g.code };
+      }
       renderApp();
     }
 
     function cancelEditGroup() {
       editingGroupId = null;
+      adminGroupDraft = { name: '', code: '' };
       renderApp();
     }
 
     async function saveGroupForm() {
-      const name = document.getElementById('group-form-name').value.trim().toUpperCase();
-      const code = document.getElementById('group-form-code').value.trim().toUpperCase() || 'MIV';
+      syncAdminGroupDraftFromDOM();
+      const name = (adminGroupDraft.name || '').trim().toUpperCase();
+      const code = (adminGroupDraft.code || '').trim().toUpperCase() || 'MIV';
       if (!name) {
         showToast('Enter a Group Name', true);
         return;
@@ -2354,6 +2040,7 @@
         });
       }
 
+      adminGroupDraft = { name: '', code: '' };
       renderApp();
       await saveAndSync(true, 'Farm group updated & synced');
     }
@@ -2366,8 +2053,36 @@
     }
 
     // ADMIN TAB D: PER-GROUP CYCLE SETTINGS & SECURITY PIN SETTINGS
+    function syncAdminCycleAndPinDraftFromDOM() {
+      const numEl = document.getElementById('cycle-num-input');
+      const daysEl = document.getElementById('cycle-days-input');
+      const dateEl = document.getElementById('cycle-date-input');
+      if (numEl) adminCycleDraft.cycleNumber = numEl.value;
+      if (daysEl) adminCycleDraft.batchDays = daysEl.value;
+      if (dateEl) adminCycleDraft.cycleStartDate = dateEl.value;
+
+      const curEl = document.getElementById('pin-current-input');
+      const nextEl = document.getElementById('pin-new-input');
+      const confEl = document.getElementById('pin-confirm-input');
+      if (curEl) adminPinDraft.current = curEl.value;
+      if (nextEl) adminPinDraft.next = nextEl.value;
+      if (confEl) adminPinDraft.confirm = confEl.value;
+    }
+
     function renderAdminCycleAndPinTab() {
       const targetGroup = getGroupById(adminCycleGroupId) || appState.groups[0];
+      if (targetGroup && adminCycleDraft.groupId !== targetGroup.id) {
+        adminCycleDraft = {
+          groupId: targetGroup.id,
+          cycleNumber: String(targetGroup.cycleNumber ?? ''),
+          batchDays: String(targetGroup.batchDays ?? ''),
+          cycleStartDate: targetGroup.cycleStartDate || ''
+        };
+      }
+
+      const cycleNumVal = adminCycleDraft.cycleNumber !== '' ? adminCycleDraft.cycleNumber : (targetGroup?.cycleNumber ?? '');
+      const batchDaysVal = adminCycleDraft.batchDays !== '' ? adminCycleDraft.batchDays : (targetGroup?.batchDays ?? '');
+      const cycleDateVal = adminCycleDraft.cycleStartDate !== '' ? adminCycleDraft.cycleStartDate : (targetGroup?.cycleStartDate ?? '');
 
       return `
         <!-- Card 1: Per-Group Cycle Number & Dates -->
@@ -2388,19 +2103,19 @@
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs font-bold text-slate-600 mb-1">Cycle Number</label>
-                <input id="cycle-num-input" type="number" min="1" value="${targetGroup.cycleNumber}"
+                <input id="cycle-num-input" type="number" min="1" value="${cycleNumVal}" oninput="syncAdminCycleAndPinDraftFromDOM()"
                   class="w-full px-4 py-3 rounded-2xl border border-rose-200 text-sm font-extrabold text-slate-900" />
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-600 mb-1">Batch Days</label>
-                <input id="cycle-days-input" type="number" min="1" value="${targetGroup.batchDays}"
+                <input id="cycle-days-input" type="number" min="1" value="${batchDaysVal}" oninput="syncAdminCycleAndPinDraftFromDOM()"
                   class="w-full px-4 py-3 rounded-2xl border border-rose-200 text-sm font-extrabold text-slate-900" />
               </div>
             </div>
 
             <div>
               <label class="block text-xs font-bold text-slate-600 mb-1">Cycle Start Date (${targetGroup.name})</label>
-              <input id="cycle-date-input" type="date" value="${targetGroup.cycleStartDate}"
+              <input id="cycle-date-input" type="date" value="${cycleDateVal}" oninput="syncAdminCycleAndPinDraftFromDOM()" onchange="syncAdminCycleAndPinDraftFromDOM()"
                 class="w-full px-4 py-3 rounded-2xl border border-rose-200 text-sm font-extrabold text-slate-900" />
             </div>
 
@@ -2437,18 +2152,18 @@
           <div class="space-y-2.5">
             <div>
               <label class="block text-xs font-bold text-slate-600 mb-1">Current Security PIN</label>
-              <input id="pin-current-input" type="password" inputmode="numeric" maxlength="8" placeholder="Enter current PIN"
+              <input id="pin-current-input" type="password" inputmode="numeric" maxlength="8" placeholder="Enter current PIN" value="${adminPinDraft.current}" oninput="syncAdminCycleAndPinDraftFromDOM()"
                 class="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-sm font-bold" />
             </div>
             <div class="grid grid-cols-2 gap-2.5">
               <div>
                 <label class="block text-xs font-bold text-slate-600 mb-1">New PIN (4-8 digits)</label>
-                <input id="pin-new-input" type="password" inputmode="numeric" maxlength="8" placeholder="New PIN"
+                <input id="pin-new-input" type="password" inputmode="numeric" maxlength="8" placeholder="New PIN" value="${adminPinDraft.next}" oninput="syncAdminCycleAndPinDraftFromDOM()"
                   class="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-sm font-bold" />
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-600 mb-1">Confirm New PIN</label>
-                <input id="pin-confirm-input" type="password" inputmode="numeric" maxlength="8" placeholder="Confirm PIN"
+                <input id="pin-confirm-input" type="password" inputmode="numeric" maxlength="8" placeholder="Confirm PIN" value="${adminPinDraft.confirm}" oninput="syncAdminCycleAndPinDraftFromDOM()"
                   class="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-sm font-bold" />
               </div>
             </div>
@@ -2463,24 +2178,42 @@
 
     function handleAdminCycleGroupChange(gid) {
       adminCycleGroupId = gid;
+      const grp = getGroupById(gid);
+      if (grp) {
+        adminCycleDraft = {
+          groupId: grp.id,
+          cycleNumber: String(grp.cycleNumber ?? ''),
+          batchDays: String(grp.batchDays ?? ''),
+          cycleStartDate: grp.cycleStartDate || ''
+        };
+      }
       renderApp();
     }
 
     async function saveGroupCycleSettings() {
+      syncAdminCycleAndPinDraftFromDOM();
       const grp = getGroupById(adminCycleGroupId);
       if (!grp) return;
-      grp.cycleNumber = Math.max(1, parseInt(document.getElementById('cycle-num-input').value || '1', 10));
-      grp.batchDays = Math.max(1, parseInt(document.getElementById('cycle-days-input').value || '60', 10));
-      grp.cycleStartDate = document.getElementById('cycle-date-input').value || grp.cycleStartDate;
+      grp.cycleNumber = Math.max(1, parseInt(adminCycleDraft.cycleNumber || '1', 10));
+      grp.batchDays = Math.max(1, parseInt(adminCycleDraft.batchDays || '60', 10));
+      grp.cycleStartDate = adminCycleDraft.cycleStartDate || grp.cycleStartDate;
+
+      adminCycleDraft = {
+        groupId: grp.id,
+        cycleNumber: String(grp.cycleNumber),
+        batchDays: String(grp.batchDays),
+        cycleStartDate: grp.cycleStartDate
+      };
 
       renderApp();
       await saveAndSync(true, `${grp.name} Cycle ${grp.cycleNumber} saved & synced`);
     }
 
     async function updateSecurityPin() {
-      const cur = document.getElementById('pin-current-input').value.trim();
-      const next = document.getElementById('pin-new-input').value.trim();
-      const conf = document.getElementById('pin-confirm-input').value.trim();
+      syncAdminCycleAndPinDraftFromDOM();
+      const cur = (adminPinDraft.current || '').trim();
+      const next = (adminPinDraft.next || '').trim();
+      const conf = (adminPinDraft.confirm || '').trim();
 
       if (cur !== appState.pin) {
         showToast('Current PIN is incorrect', true);
@@ -2496,9 +2229,8 @@
       }
 
       appState.pin = next;
-      document.getElementById('pin-current-input').value = '';
-      document.getElementById('pin-new-input').value = '';
-      document.getElementById('pin-confirm-input').value = '';
+      adminPinDraft = { current: '', next: '', confirm: '' };
+      renderApp();
       await saveAndSync(true, 'Security PIN updated & synced to Dropbox');
     }
 
@@ -2597,7 +2329,9 @@
         setDropboxIndicator('live', 'Dropbox Live');
         pullFromDropbox(false);
         setInterval(() => {
-          if (!document.hidden) pullFromDropbox(false);
+          if (!document.hidden && !(role === 'admin' && adminUnlocked)) {
+            pullFromDropbox(false);
+          }
         }, 30000);
       }
     });
