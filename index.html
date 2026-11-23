@@ -23,9 +23,42 @@
       -webkit-appearance: none;
       margin: 0;
     }
+
+    /* Dedicated Mobile & Desktop Print / Save as PDF Stylesheet */
+    #print-sheet {
+      display: none;
+    }
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 12mm;
+      }
+      html, body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+      body > *:not(#print-sheet) {
+        display: none !important;
+      }
+      #print-sheet {
+        display: block !important;
+        width: 100% !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+      }
+    }
   </style>
 </head>
 <body class="min-h-screen flex justify-center bg-rose-100/60 text-slate-900">
+
+  <!-- Printable A4 / Mobile PDF Report Container (Populated dynamically on Print/PDF) -->
+  <div id="print-sheet" aria-hidden="true"></div>
 
   <!-- Android Mobile App Viewport Container -->
   <div id="app" class="w-full max-w-[440px] min-h-screen bg-[#fff8f8] shadow-2xl flex flex-col relative overflow-x-hidden border-x border-rose-200/70">
@@ -1759,19 +1792,19 @@
               <div>
                 <span class="text-[10.5px] font-bold uppercase tracking-wider text-rose-200">Running Total vs Intake (Cyc ${dataset.cycleNumber})</span>
                 <div class="text-sm font-extrabold mt-0.5">${runningTotal.toLocaleString()} / ${intake.toLocaleString()} Birds</div>
-              </div>
-              <div class="text-right">
-                <span class="text-[10.5px] font-bold uppercase tracking-wider text-rose-200">Mortality %</span>
-                <div class="text-2xl font-black text-amber-300">${finalPct}%</div>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2.5">
-              <button type="button" onclick="exportReportCSV()" class="py-2.5 px-3 rounded-xl border border-rose-200 text-[#9f1239] font-extrabold text-xs hover:bg-rose-50 flex items-center justify-center gap-1.5">
-                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Download CSV
+            <!-- Export Actions -->
+            <div class="grid grid-cols-3 gap-2">
+              <button type="button" onclick="exportReportCSV()" class="py-2.5 px-2.5 rounded-xl border border-rose-200 text-[#9f1239] font-extrabold text-xs hover:bg-rose-50 flex items-center justify-center gap-1.5">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4 shrink-0"></i>
+                <span>CSV</span>
               </button>
-              <button type="button" onclick="copyWhatsAppReport()" class="py-2.5 px-3 rounded-xl bg-[#9f1239] text-white font-extrabold text-xs shadow-sm flex items-center justify-center gap-1.5">
-                <i data-lucide="copy" class="w-4 h-4"></i> Copy Summary
+              <button type="button" onclick="printOrSaveReportPDF()" class="py-2.5 px-2.5 rounded-xl border border-rose-200 bg-rose-50/70 text-[#881337] font-extrabold text-xs hover:bg-rose-100 flex items-center justify-center gap-1.5">
+                <i data-lucide="printer" class="w-4 h-4 shrink-0"></i>
+                <span>Print / PDF</span>
+              </button>
+              <button type="button" onclick="copyWhatsAppReport()" class="py-2.5 px-2.5 rounded-xl bg-[#9f1239] text-white font-extrabold text-xs shadow-sm flex items-center justify-center gap-1.5">
+                <i data-lucide="copy" class="w-4 h-4 shrink-0"></i>
+                <span>Copy</span>
               </button>
             </div>
           ` : `
@@ -1865,61 +1898,203 @@
       showToast('Formatted report copied to clipboard');
     }
 
+    // Mobile & Desktop Print / Save as PDF Engine
+    function printOrSaveReportPDF() {
+      const grp = getGroupById(reportGroupId);
+      if (!grp) {
+        showToast('Select a Farm Group first', true);
+        return;
+      }
+      const dataset = getReportCycleDataset(grp, reportCycleNumber);
+      const hse = dataset.houses.find(h => h.id === reportHouseId);
+      if (!hse) {
+        showToast('Select a House first to print report', true);
+        return;
+      }
+
+      const houseLogs = dataset.logs.filter(l => l.houseId === hse.id);
+      const dailyMap = {};
+      houseLogs.forEach(l => {
+        const d = l.dateTime.slice(0, 10);
+        if (!dailyMap[d]) dailyMap[d] = { date: d, dead: 0, cull: 0 };
+        dailyMap[d].dead += Number(l.dead || 0);
+        dailyMap[d].cull += Number(l.cull || 0);
+      });
+
+      const sortedDays = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
+      let runningTotal = 0;
+      let totalDead = 0;
+      let totalCull = 0;
+      const rows = sortedDays.map(d => {
+        const total = d.dead + d.cull;
+        runningTotal += total;
+        totalDead += d.dead;
+        totalCull += d.cull;
+        const age = calculateBirdAge(hse.intakeDate, d.date);
+        const rowPct = hse.birdsIntake > 0 ? ((runningTotal / hse.birdsIntake) * 100).toFixed(2) : '0.00';
+        return { ...d, age, total, runningTotal, rowPct };
+      });
+
+      const intake = Number(hse.birdsIntake || 0);
+      const finalPct = intake > 0 ? ((runningTotal / intake) * 100).toFixed(2) : '0.00';
+      const remainingBirds = Math.max(0, intake - runningTotal);
+      const generatedAt = new Date().toLocaleString();
+
+      const reportHTML = `
+        <div style="padding: 8px 4px; color: #0f172a;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom: 2px solid #881337; padding-bottom: 12px; margin-bottom: 14px;">
+            <div>
+              <div style="display:inline-block; background:#881337; color:#ffffff; font-weight:800; font-size:11px; padding:3px 10px; border-radius:999px; letter-spacing:0.04em; margin-bottom:6px;">
+                MIV POULTRY FARM OPERATIONS
+              </div>
+              <h1 style="margin:0; font-size:20px; font-weight:900; color:#881337;">Daily Mortality &amp; Cull Report</h1>
+              <p style="margin:3px 0 0 0; font-size:12px; color:#475569; font-weight:600;">
+                ${grp.name} (${grp.code}) • House ${hse.number} • Cycle ${dataset.cycleNumber} (${dataset.isArchived ? 'Archived' : 'Active'})
+              </p>
+            </div>
+            <div style="text-align:right; font-size:11px; color:#475569;">
+              <div style="font-weight:700; color:#0f172a;">Generated</div>
+              <div>${generatedAt}</div>
+            </div>
+          </div>
+
+          <table style="width:100%; border-collapse:collapse; margin-bottom:14px; font-size:12px;">
+            <tr>
+              <td style="border:1px solid #fecdd3; background:#fff1f2; padding:8px 10px; width:25%;">
+                <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase;">Intake Date (Day 0)</div>
+                <div style="font-weight:800; color:#0f172a; margin-top:2px;">${hse.intakeDate || '-'}</div>
+              </td>
+              <td style="border:1px solid #fecdd3; background:#fff1f2; padding:8px 10px; width:25%;">
+                <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase;">Cycle End Date</div>
+                <div style="font-weight:800; color:#881337; margin-top:2px;">${dataset.cycleEndDate || 'Not Set'}</div>
+              </td>
+              <td style="border:1px solid #fecdd3; background:#fff1f2; padding:8px 10px; width:25%;">
+                <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase;">Birds Intake</div>
+                <div style="font-weight:800; color:#0f172a; margin-top:2px;">${intake.toLocaleString()}</div>
+              </td>
+              <td style="border:1px solid #fecdd3; background:#fff1f2; padding:8px 10px; width:25%;">
+                <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase;">Chick Supplier</div>
+                <div style="font-weight:800; color:#881337; margin-top:2px;">${hse.supplier || '-'}</div>
+              </td>
+            </tr>
+          </table>
+
+          <table style="width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:14px;">
+            <thead>
+              <tr style="background:#881337; color:#ffffff;">
+                <th style="border:1px solid #881337; padding:7px 8px; text-align:left;">Date</th>
+                <th style="border:1px solid #881337; padding:7px 6px; text-align:center;">Age</th>
+                <th style="border:1px solid #881337; padding:7px 8px; text-align:right;">Dead</th>
+                <th style="border:1px solid #881337; padding:7px 8px; text-align:right;">Cull</th>
+                <th style="border:1px solid #881337; padding:7px 8px; text-align:right;">Daily Total</th>
+                <th style="border:1px solid #881337; padding:7px 8px; text-align:right;">Running Total</th>
+                <th style="border:1px solid #881337; padding:7px 8px; text-align:right;">Mort %</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.length === 0 ? `
+                <tr>
+                  <td colspan="7" style="border:1px solid #e2e8f0; padding:16px; text-align:center; color:#64748b;">
+                    No mortality entries logged for ${hse.number} in Cycle ${dataset.cycleNumber}.
+                  </td>
+                </tr>
+              ` : rows.map((r, idx) => `
+                <tr style="background:${idx % 2 === 1 ? '#fff8f8' : '#ffffff'};">
+                  <td style="border:1px solid #e2e8f0; padding:6px 8px; font-weight:700;">${r.date}</td>
+                  <td style="border:1px solid #e2e8f0; padding:6px; text-align:center; font-weight:700; color:#881337;">D${r.age}</td>
+                  <td style="border:1px solid #e2e8f0; padding:6px 8px; text-align:right;">${r.dead.toLocaleString()}</td>
+                  <td style="border:1px solid #e2e8f0; padding:6px 8px; text-align:right;">${r.cull.toLocaleString()}</td>
+                  <td style="border:1px solid #e2e8f0; padding:6px 8px; text-align:right; font-weight:700;">${r.total.toLocaleString()}</td>
+                  <td style="border:1px solid #e2e8f0; padding:6px 8px; text-align:right; font-weight:800; color:#881337;">${r.runningTotal.toLocaleString()}</td>
+                  <td style="border:1px solid #e2e8f0; padding:6px 8px; text-align:right; font-weight:700;">${r.rowPct}%</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="background:#ffe4e6; font-weight:900; color:#881337;">
+                <td colspan="2" style="border:1px solid #fecdd3; padding:8px;">TOTAL / CUMULATIVE SUMMARY</td>
+                <td style="border:1px solid #fecdd3; padding:8px; text-align:right;">${totalDead.toLocaleString()}</td>
+                <td style="border:1px solid #fecdd3; padding:8px; text-align:right;">${totalCull.toLocaleString()}</td>
+                <td style="border:1px solid #fecdd3; padding:8px; text-align:right;">${runningTotal.toLocaleString()}</td>
+                <td style="border:1px solid #fecdd3; padding:8px; text-align:right;">${runningTotal.toLocaleString()}</td>
+                <td style="border:1px solid #fecdd3; padding:8px; text-align:right;">${finalPct}%</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <div style="display:flex; justify-content:space-between; border:1px solid #fecdd3; border-radius:10px; padding:10px 12px; background:#fff1f2; font-size:12px;">
+            <div><strong>Remaining Live Birds:</strong> ${remainingBirds.toLocaleString()} birds</div>
+            <div><strong>Cumulative Mortality Rate:</strong> <span style="color:#881337; font-weight:900;">${finalPct}%</span></div>
+          </div>
+        </div>
+      `;
+
+      const printSheet = document.getElementById('print-sheet');
+      if (printSheet) {
+        printSheet.innerHTML = reportHTML;
+      }
+
+      const prevTitle = document.title;
+      document.title = `MIV_Mortality_${grp.name.replace(/\s+/g, '_')}_${hse.number}_Cyc${dataset.cycleNumber}`;
+
+      const cleanupAfterPrint = () => {
+        document.title = prevTitle;
+        window.removeEventListener('afterprint', cleanupAfterPrint);
+      };
+      window.addEventListener('afterprint', cleanupAfterPrint);
+
+      try {
+        window.focus();
+        setTimeout(() => {
+          window.print();
+        }, 120);
+      } catch (e) {
+        cleanupAfterPrint();
+        showToast('Unable to open print dialog on this browser', true);
+      }
+    }
+
     function copyToClipboardSafe(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopyText(text));
+      } else {
+        fallbackCopyText(text);
+      }
+    }
+
+    function fallbackCopyText(text) {
       const ta = document.createElement('textarea');
       ta.value = text;
       ta.style.position = 'fixed';
       ta.style.opacity = '0';
       document.body.appendChild(ta);
-      ta.focus();
       ta.select();
-      try {
-        document.execCommand('copy');
-      } catch (e) {}
+      try { document.execCommand('copy'); } catch (e) {}
       document.body.removeChild(ta);
     }
 
-    // ADMIN TAB B: MANUAL HOUSE ENTRY & CONFIGURATION
-    function syncAdminHouseDraftFromDOM() {
-      const grpEl = document.getElementById('house-form-group');
-      const numEl = document.getElementById('house-form-number');
-      const intEl = document.getElementById('house-form-intake');
-      const supEl = document.getElementById('house-form-supplier');
-      const datEl = document.getElementById('house-form-date');
-      if (grpEl) adminHouseDraft.groupId = grpEl.value;
-      if (numEl) adminHouseDraft.number = numEl.value;
-      if (intEl) adminHouseDraft.birdsIntake = intEl.value;
-      if (supEl) adminHouseDraft.supplier = supEl.value;
-      if (datEl) adminHouseDraft.intakeDate = datEl.value;
-    }
-
+    // =========================================================================
+    // 12. ADMIN TAB B: HOUSES MANAGEMENT
+    // =========================================================================
     function renderAdminHousesTab() {
       const editH = editingHouseId ? getHouseById(editingHouseId) : null;
-      const currentGroupVal = editH ? editH.groupId : (adminHouseDraft.groupId || selectedGroupId || appState.groups[0]?.id || '');
-      const currentNumVal = editH ? editH.number : adminHouseDraft.number;
-      const currentIntakeVal = editH ? editH.birdsIntake : adminHouseDraft.birdsIntake;
-      const currentSupplierVal = editH ? editH.supplier : adminHouseDraft.supplier;
-      const currentDateVal = editH ? editH.intakeDate : adminHouseDraft.intakeDate;
+      const formGrpId = editH ? editH.groupId : (adminHouseDraft.groupId || appState.groups[0]?.id || '');
 
       return `
         <div class="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-3.5">
-          <div class="flex items-center justify-between gap-2">
-            <h3 class="font-extrabold text-base text-slate-900">${editH ? 'Update House Details' : 'Add New House'}</h3>
-            <span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-[#9f1239] text-[10.5px] font-extrabold">
-              ${editH ? 'Edit Mode' : 'House Setup'}
-            </span>
-          </div>
+          <h3 class="font-extrabold text-base text-slate-900">${editH ? 'Update House Details' : 'Add New House'}</h3>
 
           <div class="grid grid-cols-2 gap-2.5">
             <div>
               <label class="block text-[11px] font-bold text-slate-600 mb-1">Farm Group</label>
-              <select id="house-form-group" onchange="syncAdminHouseDraftFromDOM()" class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold bg-rose-50/30">
-                ${appState.groups.map(g => `<option value="${g.id}" ${currentGroupVal === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
+              <select id="house-form-group" onchange="if(!editingHouseId) adminHouseDraft.groupId = this.value" class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold bg-rose-50/30">
+                ${appState.groups.map(g => `<option value="${g.id}" ${formGrpId === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
               </select>
             </div>
             <div>
               <label class="block text-[11px] font-bold text-slate-600 mb-1">House Number</label>
-              <input id="house-form-number" type="text" placeholder="e.g. H7" value="${currentNumVal}" oninput="syncAdminHouseDraftFromDOM()"
+              <input id="house-form-number" type="text" placeholder="e.g. H1" value="${editH ? editH.number : adminHouseDraft.number}"
+                oninput="if(!editingHouseId) adminHouseDraft.number = this.value"
                 class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
             </div>
           </div>
@@ -1927,19 +2102,22 @@
           <div class="grid grid-cols-2 gap-2.5">
             <div>
               <label class="block text-[11px] font-bold text-slate-600 mb-1">Birds Intake</label>
-              <input id="house-form-intake" type="number" min="0" placeholder="30000" value="${currentIntakeVal}" oninput="syncAdminHouseDraftFromDOM()"
+              <input id="house-form-intake" type="number" min="0" placeholder="30000" value="${editH ? editH.birdsIntake : adminHouseDraft.birdsIntake}"
+                oninput="if(!editingHouseId) adminHouseDraft.birdsIntake = this.value"
                 class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
             </div>
             <div>
               <label class="block text-[11px] font-bold text-slate-600 mb-1">Supplier</label>
-              <input id="house-form-supplier" type="text" placeholder="e.g. CP Breeder" value="${currentSupplierVal}" oninput="syncAdminHouseDraftFromDOM()"
+              <input id="house-form-supplier" type="text" placeholder="e.g. CP Breeder" value="${editH ? editH.supplier : adminHouseDraft.supplier}"
+                oninput="if(!editingHouseId) adminHouseDraft.supplier = this.value"
                 class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
             </div>
           </div>
 
           <div>
             <label class="block text-[11px] font-bold text-slate-600 mb-1">Date Intake (Day 0, Next Day = Day 1)</label>
-            <input id="house-form-date" type="date" value="${currentDateVal}" oninput="syncAdminHouseDraftFromDOM()" onchange="syncAdminHouseDraftFromDOM()"
+            <input id="house-form-date" type="date" value="${editH ? editH.intakeDate : (adminHouseDraft.intakeDate || getTodayDateStr())}"
+              onchange="if(!editingHouseId) adminHouseDraft.intakeDate = this.value"
               class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
           </div>
 
@@ -1954,8 +2132,8 @@
         <div class="space-y-2.5">
           <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 px-1">Configured Houses (${appState.houses.length})</h4>
           ${appState.houses.length === 0 ? `
-            <div class="bg-white rounded-2xl p-6 text-center border border-rose-100 text-xs text-slate-500">
-              No houses configured yet. Fill in the details above to add your first house.
+            <div class="bg-white rounded-2xl p-5 text-center border border-rose-100 text-xs text-slate-500">
+              No houses configured yet. Add your first house above.
             </div>
           ` : appState.houses.map(h => {
             const g = getGroupById(h.groupId);
@@ -1983,38 +2161,20 @@
 
     function startEditHouse(hid) {
       editingHouseId = hid;
-      const h = getHouseById(hid);
-      if (h) {
-        adminHouseDraft = {
-          groupId: h.groupId,
-          number: h.number,
-          birdsIntake: String(h.birdsIntake),
-          supplier: h.supplier,
-          intakeDate: h.intakeDate
-        };
-      }
       renderApp();
     }
 
     function cancelEditHouse() {
       editingHouseId = null;
-      adminHouseDraft = {
-        groupId: selectedGroupId || appState.groups[0]?.id || '',
-        number: '',
-        birdsIntake: '',
-        supplier: '',
-        intakeDate: ''
-      };
       renderApp();
     }
 
     async function saveHouseForm() {
-      syncAdminHouseDraftFromDOM();
-      const groupId = adminHouseDraft.groupId || document.getElementById('house-form-group').value;
-      const number = (adminHouseDraft.number || '').trim().toUpperCase();
-      const intakeDate = adminHouseDraft.intakeDate || getTodayDateStr();
-      const birdsIntake = Math.max(0, parseInt(adminHouseDraft.birdsIntake || '0', 10));
-      const supplier = (adminHouseDraft.supplier || '').trim() || 'Standard Supplier';
+      const groupId = document.getElementById('house-form-group').value;
+      const number = document.getElementById('house-form-number').value.trim().toUpperCase();
+      const birdsIntake = Math.max(0, parseInt(document.getElementById('house-form-intake').value || '0', 10));
+      const supplier = document.getElementById('house-form-supplier').value.trim() || 'Standard Supplier';
+      const intakeDate = document.getElementById('house-form-date').value || getTodayDateStr();
 
       if (!number) {
         showToast('Enter a House Number (e.g. H1)', true);
@@ -2026,30 +2186,16 @@
         if (h) Object.assign(h, { groupId, number, birdsIntake, supplier, intakeDate });
         editingHouseId = null;
       } else {
-        const existingHouse = appState.houses.find(
-          h => h.groupId === groupId && h.number.trim().toUpperCase() === number
-        );
-        if (existingHouse) {
-          Object.assign(existingHouse, { birdsIntake, supplier, intakeDate });
-        } else {
-          appState.houses.push({
-            id: 'h-' + Date.now(),
-            groupId,
-            number,
-            birdsIntake,
-            supplier,
-            intakeDate
-          });
-        }
+        appState.houses.push({
+          id: 'h-' + Date.now(),
+          groupId,
+          number,
+          birdsIntake,
+          supplier,
+          intakeDate
+        });
+        adminHouseDraft = { groupId, number: '', birdsIntake: '', supplier: '', intakeDate: '' };
       }
-
-      adminHouseDraft = {
-        groupId,
-        number: '',
-        birdsIntake: '',
-        supplier: '',
-        intakeDate: ''
-      };
 
       renderApp();
       await saveAndSync(true, 'House saved & synced to Dropbox');
@@ -2061,18 +2207,11 @@
       await saveAndSync(true, 'House removed & synced');
     }
 
-    // ADMIN TAB C: UPDATE / ADD FARM GROUPS
-    function syncAdminGroupDraftFromDOM() {
-      const nameEl = document.getElementById('group-form-name');
-      const codeEl = document.getElementById('group-form-code');
-      if (nameEl) adminGroupDraft.name = nameEl.value;
-      if (codeEl) adminGroupDraft.code = codeEl.value;
-    }
-
+    // =========================================================================
+    // 13. ADMIN TAB C: GROUPS MANAGEMENT
+    // =========================================================================
     function renderAdminGroupsTab() {
       const editG = editingGroupId ? getGroupById(editingGroupId) : null;
-      const currentNameVal = editG ? editG.name : adminGroupDraft.name;
-      const currentCodeVal = editG ? editG.code : adminGroupDraft.code;
 
       return `
         <div class="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-3.5">
@@ -2081,12 +2220,14 @@
           <div class="grid grid-cols-2 gap-2.5">
             <div>
               <label class="block text-[11px] font-bold text-slate-600 mb-1">Group Name</label>
-              <input id="group-form-name" type="text" placeholder="e.g. FARM E" value="${currentNameVal}" oninput="syncAdminGroupDraftFromDOM()"
+              <input id="group-form-name" type="text" placeholder="e.g. FARM E" value="${editG ? editG.name : adminGroupDraft.name}"
+                oninput="if(!editingGroupId) adminGroupDraft.name = this.value"
                 class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
             </div>
             <div>
               <label class="block text-[11px] font-bold text-slate-600 mb-1">Location / Tag Code</label>
-              <input id="group-form-code" type="text" placeholder="e.g. KP" value="${currentCodeVal}" oninput="syncAdminGroupDraftFromDOM()"
+              <input id="group-form-code" type="text" placeholder="e.g. KP" value="${editG ? editG.code : adminGroupDraft.code}"
+                oninput="if(!editingGroupId) adminGroupDraft.code = this.value"
                 class="w-full px-3 py-2.5 rounded-xl border border-rose-200 text-xs font-extrabold" />
             </div>
           </div>
@@ -2110,7 +2251,7 @@
                     <span class="font-extrabold text-sm text-slate-900">${g.name}</span>
                     <span class="px-2 py-0.5 rounded-md bg-rose-100 text-[#9f1239] text-[10px] font-extrabold">${g.code}</span>
                   </div>
-                  <p class="text-xs text-slate-500 mt-0.5">${count} Houses • Cycle ${g.cycleNumber} (${g.batchDays} Days)</p>
+                  <p class="text-xs text-slate-500 mt-0.5">${count} Houses • Cycle ${g.cycleNumber}${g.cycleEndDate ? ` • Ends ${g.cycleEndDate}` : ''}</p>
                 </div>
                 <div class="flex items-center gap-1.5">
                   <button type="button" onclick="startEditGroup('${g.id}')" class="p-2 rounded-xl bg-rose-50 text-[#9f1239]"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
@@ -2125,23 +2266,17 @@
 
     function startEditGroup(gid) {
       editingGroupId = gid;
-      const g = getGroupById(gid);
-      if (g) {
-        adminGroupDraft = { name: g.name, code: g.code };
-      }
       renderApp();
     }
 
     function cancelEditGroup() {
       editingGroupId = null;
-      adminGroupDraft = { name: '', code: '' };
       renderApp();
     }
 
     async function saveGroupForm() {
-      syncAdminGroupDraftFromDOM();
-      const name = (adminGroupDraft.name || '').trim().toUpperCase();
-      const code = (adminGroupDraft.code || '').trim().toUpperCase() || 'MIV';
+      const name = document.getElementById('group-form-name').value.trim().toUpperCase();
+      const code = document.getElementById('group-form-code').value.trim().toUpperCase() || 'MIV';
       if (!name) {
         showToast('Enter a Group Name', true);
         return;
@@ -2158,12 +2293,13 @@
           code,
           cycleNumber: 76,
           batchDays: 60,
+          cycleStartDate: getTodayDateStr(),
           cycleEndDate: '',
           archivedCycles: []
         });
+        adminGroupDraft = { name: '', code: '' };
       }
 
-      adminGroupDraft = { name: '', code: '' };
       renderApp();
       await saveAndSync(true, 'Farm group updated & synced');
     }
@@ -2175,123 +2311,98 @@
       await saveAndSync(true, 'Group removed & synced');
     }
 
-    // ADMIN TAB D: INDIVIDUAL GROUP CYCLE SETTINGS (PER-GROUP) & SECURITY PIN
-    function getGroupCycleDayStatus(grp) {
-      const ended = isGroupCycleEnded(grp);
-      if (ended) return { label: 'Ended • Hidden on User', isEnded: true };
-      const startStr = (grp.cycleStartDate || '').slice(0, 10);
-      const endStr = (grp.cycleEndDate || '').slice(0, 10);
-      if (!startStr) return { label: 'Active', isEnded: false };
-      const todayStr = getTodayDateStr();
-      const dayNum = calculateBirdAge(startStr, todayStr) + 1;
-      if (endStr && endStr >= startStr) {
-        const totalDays = Math.max(1, calculateBirdAge(startStr, endStr) + 1);
-        return { label: `Active • Day ${dayNum}/${totalDays}`, isEnded: false };
+    // =========================================================================
+    // 14. ADMIN TAB D: INDIVIDUAL GROUP CYCLE SETTINGS & SECURITY PIN
+    // =========================================================================
+    function getGroupCycleDayStatus(g) {
+      const ended = isGroupCycleEnded(g);
+      if (ended) {
+        return { label: 'Ended • Hidden on User', badgeClass: 'text-rose-700' };
       }
-      return { label: `Active • Day ${dayNum}`, isEnded: false };
+      const start = g.cycleStartDate || getTodayDateStr();
+      const end = g.cycleEndDate || '';
+      const elapsed = Math.max(1, calculateBirdAge(start, getTodayDateStr()) + 1);
+      const totalSpan = end ? Math.max(1, calculateBirdAge(start, end) + 1) : (g.batchDays || 60);
+      return { label: `Active • Day ${elapsed}/${totalSpan}`, badgeClass: 'text-emerald-800' };
     }
 
-    function syncAdminCycleAndPinDraftFromDOM() {
-      appState.groups.forEach(g => {
-        const numEl = document.getElementById(`ind-cycle-num-${g.id}`);
-        const startEl = document.getElementById(`ind-cycle-start-${g.id}`);
-        const endEl = document.getElementById(`ind-cycle-end-${g.id}`);
-        if (numEl || startEl || endEl) {
-          if (!adminGroupCycleDrafts[g.id]) {
-            adminGroupCycleDrafts[g.id] = {
-              cycleNumber: String(g.cycleNumber ?? ''),
-              cycleStartDate: g.cycleStartDate || '',
-              cycleEndDate: g.cycleEndDate || ''
-            };
-          }
-          if (numEl) adminGroupCycleDrafts[g.id].cycleNumber = numEl.value;
-          if (startEl) adminGroupCycleDrafts[g.id].cycleStartDate = startEl.value;
-          if (endEl) adminGroupCycleDrafts[g.id].cycleEndDate = endEl.value;
-        }
-      });
-
-      const curEl = document.getElementById('pin-current-input');
-      const nextEl = document.getElementById('pin-new-input');
-      const confEl = document.getElementById('pin-confirm-input');
-      if (curEl) adminPinDraft.current = curEl.value;
-      if (nextEl) adminPinDraft.next = nextEl.value;
-      if (confEl) adminPinDraft.confirm = confEl.value;
+    function updateGroupCycleDraftField(gid, field, val) {
+      if (!adminGroupCycleDrafts[gid]) {
+        const g = getGroupById(gid);
+        adminGroupCycleDrafts[gid] = {
+          cycleNumber: g?.cycleNumber ?? 1,
+          cycleStartDate: g?.cycleStartDate ?? '',
+          cycleEndDate: g?.cycleEndDate ?? ''
+        };
+      }
+      adminGroupCycleDrafts[gid][field] = val;
     }
 
     function renderAdminCycleAndPinTab() {
       return `
-        <!-- Section: INDIVIDUAL GROUP CYCLE SETTINGS (Per-Group) -->
         <div class="space-y-3">
           <div class="flex items-center justify-between px-1">
-            <h3 class="font-extrabold text-xs uppercase tracking-wider text-slate-700">Individual Group Cycle Settings</h3>
-            <span class="px-2.5 py-1 rounded-lg bg-rose-50 border border-rose-200 text-[#9f1239] text-[11px] font-extrabold">Per-Group</span>
+            <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-600">INDIVIDUAL GROUP CYCLE SETTINGS</h3>
+            <span class="px-2.5 py-1 rounded-xl border border-rose-200 bg-white text-[11px] font-extrabold text-[#881337]">Per-Group</span>
           </div>
 
-          <div class="space-y-3.5">
-            ${appState.groups.map(g => {
-              if (!adminGroupCycleDrafts[g.id]) {
-                adminGroupCycleDrafts[g.id] = {
-                  cycleNumber: String(g.cycleNumber ?? ''),
-                  cycleStartDate: g.cycleStartDate || '',
-                  cycleEndDate: g.cycleEndDate || ''
-                };
-              }
-              const draft = adminGroupCycleDrafts[g.id];
-              const status = getGroupCycleDayStatus(g);
-              const archivedCount = (g.archivedCycles || []).length;
+          ${appState.groups.map(g => {
+            const draft = adminGroupCycleDrafts[g.id] || {
+              cycleNumber: g.cycleNumber,
+              cycleStartDate: g.cycleStartDate || '',
+              cycleEndDate: g.cycleEndDate || ''
+            };
+            const status = getGroupCycleDayStatus(g);
 
-              return `
-                <div class="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-3.5">
-                  <!-- Card Top Header: Group Pill + Code | Status -->
-                  <div class="flex items-center justify-between gap-2">
-                    <div class="flex items-center gap-2">
-                      <span class="px-3 py-1 rounded-lg bg-[#881337] text-white text-xs font-extrabold tracking-wide">${g.name}</span>
-                      <span class="text-xs font-extrabold text-slate-600">${g.code}</span>
-                      ${archivedCount > 0 ? `<span class="px-2 py-0.5 rounded-md bg-rose-50 text-[#9f1239] text-[10px] font-bold">${archivedCount} Archived</span>` : ''}
-                    </div>
-                    <span class="text-xs font-extrabold ${status.isEnded ? 'text-amber-700' : 'text-[#9f1239]'}">${status.label}</span>
+            return `
+              <div class="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-3.5">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="px-3 py-1 rounded-xl bg-[#881337] text-white text-xs font-extrabold tracking-wide">${g.name}</span>
+                    <span class="text-xs font-bold text-slate-600">${g.code}</span>
                   </div>
+                  <span class="text-xs font-extrabold ${status.badgeClass}">${status.label}</span>
+                </div>
 
-                  <!-- Cycle Number Input -->
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Cycle</label>
+                  <input id="cycle-num-${g.id}" type="number" min="1" value="${draft.cycleNumber}"
+                    oninput="updateGroupCycleDraftField('${g.id}', 'cycleNumber', this.value)"
+                    class="w-full px-4 py-3 rounded-2xl border border-rose-200 text-sm font-extrabold text-slate-900" />
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">Cycle</label>
-                    <input id="ind-cycle-num-${g.id}" type="number" min="1" value="${draft.cycleNumber}" oninput="syncAdminCycleAndPinDraftFromDOM()"
-                      class="w-full px-4 py-3 rounded-2xl border border-rose-200 text-sm font-extrabold text-slate-900 bg-rose-50/20 focus:outline-none focus:border-[#9f1239]" />
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Start Date</label>
+                    <input id="cycle-start-${g.id}" type="date" value="${draft.cycleStartDate}"
+                      onchange="updateGroupCycleDraftField('${g.id}', 'cycleStartDate', this.value)"
+                      class="w-full px-3.5 py-3 rounded-2xl border border-rose-200 text-xs font-extrabold text-slate-900" />
                   </div>
-
-                  <!-- Start Date & End Date Side-by-Side -->
-                  <div class="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <label class="block text-xs font-bold text-slate-600 mb-1">Start Date</label>
-                      <input id="ind-cycle-start-${g.id}" type="date" value="${draft.cycleStartDate}" oninput="syncAdminCycleAndPinDraftFromDOM()" onchange="syncAdminCycleAndPinDraftFromDOM()"
-                        class="w-full px-3 py-2.5 rounded-2xl border border-rose-200 text-xs font-extrabold text-slate-900 bg-rose-50/20 focus:outline-none focus:border-[#9f1239]" />
-                    </div>
-                    <div>
-                      <label class="block text-xs font-bold text-slate-600 mb-1">End Date</label>
-                      <input id="ind-cycle-end-${g.id}" type="date" value="${draft.cycleEndDate}" oninput="syncAdminCycleAndPinDraftFromDOM()" onchange="syncAdminCycleAndPinDraftFromDOM()"
-                        class="w-full px-3 py-2.5 rounded-2xl border border-rose-200 text-xs font-extrabold text-slate-900 bg-rose-50/20 focus:outline-none focus:border-[#9f1239]" />
-                    </div>
-                  </div>
-
-                  <!-- Action Buttons: Save [Group] Cycle & + New Cycle -->
-                  <div class="grid grid-cols-2 gap-2.5 pt-0.5">
-                    <button type="button" onclick="saveIndividualGroupCycle('${g.id}')"
-                      class="py-3 px-3 rounded-2xl bg-[#881337] hover:bg-[#9f1239] text-white font-extrabold text-xs shadow-sm transition active:scale-[0.98]">
-                      Save ${g.name} Cycle
-                    </button>
-                    <button type="button" onclick="startFreshIndividualGroupCycle('${g.id}')"
-                      class="py-3 px-3 rounded-2xl bg-white hover:bg-rose-50 border-2 border-[#881337]/30 text-[#881337] font-extrabold text-xs flex items-center justify-center gap-1.5 transition active:scale-[0.98]">
-                      <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                      <span>New Cycle</span>
-                    </button>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">End Date</label>
+                    <input id="cycle-end-${g.id}" type="date" value="${draft.cycleEndDate}"
+                      onchange="updateGroupCycleDraftField('${g.id}', 'cycleEndDate', this.value)"
+                      class="w-full px-3.5 py-3 rounded-2xl border border-rose-200 text-xs font-extrabold text-slate-900" />
                   </div>
                 </div>
-              `;
-            }).join('')}
-          </div>
+
+                <div class="grid grid-cols-2 gap-2.5 pt-0.5">
+                  <button type="button" onclick="saveIndividualGroupCycle('${g.id}')"
+                    class="py-3 px-3 rounded-2xl bg-[#881337] hover:bg-[#9f1239] text-white font-extrabold text-xs shadow-sm transition">
+                    Save ${g.name} Cycle
+                  </button>
+                  <button type="button" onclick="createFreshCycleForGroup('${g.id}')"
+                    class="py-3 px-3 rounded-2xl border-2 border-rose-200 hover:bg-rose-50 text-[#881337] font-extrabold text-xs flex items-center justify-center gap-1.5 transition">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>New Cycle</span>
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
         </div>
 
-        <!-- Card: Security PIN Settings (Admin & My Logs Amend/Delete) -->
+        <!-- Card 2: Security PIN Settings -->
         <div class="bg-white rounded-3xl p-4 border border-rose-100 shadow-sm space-y-3.5">
           <div class="flex items-center gap-2">
             <div class="w-8 h-8 rounded-xl bg-rose-100 text-[#9f1239] flex items-center justify-center">
@@ -2306,18 +2417,21 @@
           <div class="space-y-2.5">
             <div>
               <label class="block text-xs font-bold text-slate-600 mb-1">Current Security PIN</label>
-              <input id="pin-current-input" type="password" inputmode="numeric" maxlength="8" placeholder="Enter current PIN" value="${adminPinDraft.current}" oninput="syncAdminCycleAndPinDraftFromDOM()"
+              <input id="pin-current-input" type="password" inputmode="numeric" maxlength="8" placeholder="Enter current PIN"
+                value="${adminPinDraft.current}" oninput="adminPinDraft.current = this.value"
                 class="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-sm font-bold" />
             </div>
             <div class="grid grid-cols-2 gap-2.5">
               <div>
                 <label class="block text-xs font-bold text-slate-600 mb-1">New PIN (4-8 digits)</label>
-                <input id="pin-new-input" type="password" inputmode="numeric" maxlength="8" placeholder="New PIN" value="${adminPinDraft.next}" oninput="syncAdminCycleAndPinDraftFromDOM()"
+                <input id="pin-new-input" type="password" inputmode="numeric" maxlength="8" placeholder="New PIN"
+                  value="${adminPinDraft.next}" oninput="adminPinDraft.next = this.value"
                   class="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-sm font-bold" />
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-600 mb-1">Confirm New PIN</label>
-                <input id="pin-confirm-input" type="password" inputmode="numeric" maxlength="8" placeholder="Confirm PIN" value="${adminPinDraft.confirm}" oninput="syncAdminCycleAndPinDraftFromDOM()"
+                <input id="pin-confirm-input" type="password" inputmode="numeric" maxlength="8" placeholder="Confirm PIN"
+                  value="${adminPinDraft.confirm}" oninput="adminPinDraft.confirm = this.value"
                   class="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-sm font-bold" />
               </div>
             </div>
@@ -2331,78 +2445,64 @@
     }
 
     async function saveIndividualGroupCycle(gid) {
-      syncAdminCycleAndPinDraftFromDOM();
       const grp = getGroupById(gid);
       if (!grp) return;
-      const draft = adminGroupCycleDrafts[gid] || {};
+      const numEl = document.getElementById(`cycle-num-${gid}`);
+      const startEl = document.getElementById(`cycle-start-${gid}`);
+      const endEl = document.getElementById(`cycle-end-${gid}`);
 
-      grp.cycleNumber = Math.max(1, parseInt(draft.cycleNumber || String(grp.cycleNumber || 1), 10));
-      grp.cycleStartDate = draft.cycleStartDate || '';
-      grp.cycleEndDate = draft.cycleEndDate || '';
-
-      if (grp.cycleStartDate && grp.cycleEndDate && grp.cycleEndDate >= grp.cycleStartDate) {
-        grp.batchDays = Math.max(1, calculateBirdAge(grp.cycleStartDate, grp.cycleEndDate) + 1);
+      grp.cycleNumber = Math.max(1, parseInt(numEl?.value || grp.cycleNumber || '1', 10));
+      grp.cycleStartDate = startEl?.value || '';
+      grp.cycleEndDate = endEl?.value || '';
+      if (grp.cycleStartDate && grp.cycleEndDate) {
+        grp.batchDays = Math.max(1, calculateBirdAge(grp.cycleStartDate, grp.cycleEndDate));
       }
-
-      adminGroupCycleDrafts[gid] = {
-        cycleNumber: String(grp.cycleNumber),
-        cycleStartDate: grp.cycleStartDate,
-        cycleEndDate: grp.cycleEndDate
-      };
+      delete adminGroupCycleDrafts[gid];
 
       renderApp();
       await saveAndSync(true, `${grp.name} Cycle ${grp.cycleNumber} saved & synced`);
     }
 
-    async function startFreshIndividualGroupCycle(gid) {
-      syncAdminCycleAndPinDraftFromDOM();
+    async function createFreshCycleForGroup(gid) {
       const grp = getGroupById(gid);
       if (!grp) return;
 
-      if (!Array.isArray(grp.archivedCycles)) grp.archivedCycles = [];
-      const currentHouses = JSON.parse(JSON.stringify(getHousesByGroup(grp.id)));
-      const currentLogs = JSON.parse(JSON.stringify(appState.logs.filter(l => l.groupId === grp.id)));
+      const groupHouses = getHousesByGroup(gid);
+      const groupLogs = appState.logs.filter(l => l.groupId === gid);
 
-      // Archive current cycle logs & house setup for historical Reports lookup
+      if (!Array.isArray(grp.archivedCycles)) grp.archivedCycles = [];
       grp.archivedCycles.push({
         cycleNumber: grp.cycleNumber,
-        cycleStartDate: grp.cycleStartDate || getTodayDateStr(),
+        cycleStartDate: grp.cycleStartDate || '',
         cycleEndDate: grp.cycleEndDate || getTodayDateStr(),
         archivedAt: new Date().toISOString(),
-        houses: currentHouses,
-        logs: currentLogs
+        houses: JSON.parse(JSON.stringify(groupHouses)),
+        logs: JSON.parse(JSON.stringify(groupLogs))
       });
 
-      // Reset active logs & houses for the fresh cycle
-      appState.logs = appState.logs.filter(l => l.groupId !== grp.id);
-      appState.houses = appState.houses.filter(h => h.groupId !== grp.id);
+      // Clear active logs & houses for this group and start fresh cycle
+      const archivedLogIds = groupLogs.map(l => l.id);
+      if (!Array.isArray(appState.deletedLogIds)) appState.deletedLogIds = [];
+      archivedLogIds.forEach(id => {
+        if (!appState.deletedLogIds.includes(id)) appState.deletedLogIds.push(id);
+      });
 
-      const nextCycleNum = (Number(grp.cycleNumber) || 76) + 1;
-      const todayStr = getTodayDateStr();
-      const defaultEnd = new Date();
-      defaultEnd.setDate(defaultEnd.getDate() + 62);
-      const nextEndStr = defaultEnd.toISOString().slice(0, 10);
+      appState.logs = appState.logs.filter(l => l.groupId !== gid);
+      appState.houses = appState.houses.filter(h => h.groupId !== gid);
 
-      grp.cycleNumber = nextCycleNum;
-      grp.cycleStartDate = todayStr;
-      grp.cycleEndDate = nextEndStr;
-      grp.batchDays = 63;
-
-      adminGroupCycleDrafts[gid] = {
-        cycleNumber: String(grp.cycleNumber),
-        cycleStartDate: grp.cycleStartDate,
-        cycleEndDate: grp.cycleEndDate
-      };
+      grp.cycleNumber = Number(grp.cycleNumber || 1) + 1;
+      grp.cycleStartDate = getTodayDateStr();
+      grp.cycleEndDate = '';
+      delete adminGroupCycleDrafts[gid];
 
       renderApp();
-      await saveAndSync(true, `Archived previous cycle & started ${grp.name} Cycle ${grp.cycleNumber}!`);
+      await saveAndSync(true, `Archived previous cycle & started ${grp.name} Cycle ${grp.cycleNumber}`);
     }
 
     async function updateSecurityPin() {
-      syncAdminCycleAndPinDraftFromDOM();
-      const cur = (adminPinDraft.current || '').trim();
-      const next = (adminPinDraft.next || '').trim();
-      const conf = (adminPinDraft.confirm || '').trim();
+      const cur = document.getElementById('pin-current-input').value.trim();
+      const next = document.getElementById('pin-new-input').value.trim();
+      const conf = document.getElementById('pin-confirm-input').value.trim();
 
       if (cur !== appState.pin) {
         showToast('Current PIN is incorrect', true);
@@ -2424,7 +2524,7 @@
     }
 
     // =========================================================================
-    // 12. DROPBOX MODAL & 1-TAP TEAM SYNC LINK CONTROLS
+    // 15. DROPBOX MODAL CONTROLS
     // =========================================================================
     function openDropboxModal() {
       document.getElementById('dropbox-refresh-input').value = dbxCreds.refreshToken || '';
@@ -2433,17 +2533,9 @@
       document.getElementById('dropbox-token-input').value = dbxCreds.accessToken || '';
 
       const info = document.getElementById('dropbox-last-sync');
-      if (dbxCreds.refreshToken && dbxCreds.appKey) {
-        info.textContent = lastSyncTime
-          ? `Permanent Auto-Sync Active • Last synced at ${lastSyncTime}`
-          : 'Permanent Refresh Token active • Auto-syncing /data/mortality.json';
-      } else if (dbxCreds.accessToken) {
-        info.textContent = lastSyncTime
-          ? `Connected • Last synced at ${lastSyncTime}`
-          : 'Access token configured • Ready to sync /data/mortality.json';
-      } else {
-        info.textContent = 'Local cache active. Enter token to enable multi-device cloud sync.';
-      }
+      info.textContent = hasDropboxAuth()
+        ? (lastSyncTime ? `Connected • Last synced at ${lastSyncTime}` : 'Credentials configured • Ready to sync /data/mortality.json')
+        : 'Local cache active. Enter token to enable cloud sync.';
       document.getElementById('dropbox-modal').classList.remove('hidden');
     }
 
@@ -2470,49 +2562,26 @@
     }
 
     function copyNewDeviceSyncLink() {
-      const rk = document.getElementById('dropbox-refresh-input').value.trim() || dbxCreds.refreshToken;
-      const ak = document.getElementById('dropbox-appkey-input').value.trim() || dbxCreds.appKey;
-      const as = document.getElementById('dropbox-appsecret-input').value.trim() || dbxCreds.appSecret;
-      const at = document.getElementById('dropbox-token-input').value.trim() || dbxCreds.accessToken;
-
-      if (!rk && !at) {
-        showToast('Enter Refresh Token or Access Token first', true);
-        return;
-      }
-
-      const payload = btoa(unescape(encodeURIComponent(JSON.stringify({ rk, ak, as, at }))))
+      const payload = {
+        rk: dbxCreds.refreshToken || '',
+        ak: dbxCreds.appKey || '',
+        as: dbxCreds.appSecret || '',
+        at: dbxCreds.accessToken || ''
+      };
+      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))))
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=+$/, '');
-
-      const baseUrl = window.location.origin + window.location.pathname;
-      const shareUrl = `${baseUrl}#dbx=${payload}`;
+      const baseUrl = `${window.location.origin}${window.location.pathname}`;
+      const shareUrl = `${baseUrl}#dbx=${encoded}`;
       copyToClipboardSafe(shareUrl);
-      showToast('1-Tap Device Sync Link copied! Open on any phone to auto-sync.');
+      showToast('1-Tap New Device Sync Link copied!');
     }
 
     // =========================================================================
-    // 13. BOOTSTRAP & BACKGROUND MULTI-DEVICE POLLING
+    // 16. BOOTSTRAP
     // =========================================================================
-    function resetSampleCacheIfPresent() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        const hasDefaultSampleLogs = Array.isArray(parsed?.logs) && parsed.logs.some(l => /^log-[1-6]$/.test(l.id));
-        const hasDefaultSampleHouses = Array.isArray(parsed?.houses) && parsed.houses.some(h => /^h-[abcd]\d+$/.test(h.id));
-        if (hasDefaultSampleLogs || hasDefaultSampleHouses) {
-          localStorage.removeItem(STORAGE_KEY);
-          hasCachedLocalState = false;
-          appState = JSON.parse(JSON.stringify(DEFAULT_STATE));
-        }
-      } catch (e) {
-        console.warn('Cache cleanup skipped:', e);
-      }
-    }
-
     window.addEventListener('DOMContentLoaded', () => {
-      resetSampleCacheIfPresent();
       renderApp();
       if (hasDropboxAuth()) {
         setDropboxIndicator('live', 'Dropbox Live');
